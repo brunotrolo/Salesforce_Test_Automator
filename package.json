@@ -5,7 +5,7 @@
   "type": "module",
   "description": "QA autônomo de tela para Salesforce Service Cloud: caderno de teste, massa, execução com Playwright e relatório",
   "scripts": {
-    "testar": "node --test tests/*.test.mjs",
+    "test": "node --test --test-timeout=120000 tests/*.test.mjs",
     "verificar": "node scripts/verify-skills.mjs"
   },
   "engines": { "node": ">=20" },
