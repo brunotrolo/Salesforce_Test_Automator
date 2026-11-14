@@ -1,0 +1,35 @@
+{
+  "$comment": "caderno.json: casos de teste de tela com rastreio a oráculos. Gerado pela conversa principal, validado por validate-caderno.mjs.",
+  "type": "object",
+  "required": ["schema", "capacidade", "casos"],
+  "properties": {
+    "schema": { "type": "string" },
+    "capacidade": { "type": "string", "minLength": 1 },
+    "navegacao_base": { "type": "object", "description": "como chegar ao ponto de partida (app, aba, objeto)", "properties": { "app": { "type": "string" }, "caminho": { "type": "array", "items": { "type": "string" } } } },
+    "casos": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["id", "titulo", "tipo", "prioridade", "passos", "esperado"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^TC-\\d{3}$" },
+          "titulo": { "type": "string", "minLength": 3 },
+          "tipo": { "enum": ["fumaca", "funcional", "negativo", "limite", "permissao", "lgpd", "exploratorio"] },
+          "prioridade": { "enum": ["P1", "P2", "P3"] },
+          "oraculos": { "type": "array", "items": { "type": "string" } },
+          "gaps_relacionados": { "type": "array", "items": { "type": "string" } },
+          "pre_condicoes": { "type": "array", "items": { "type": "string" } },
+          "massa": { "type": "array", "items": { "type": "object", "required": ["ref", "entidade"], "properties": { "ref": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }, "entidade": { "type": "string" }, "atributos": { "type": "object" }, "quantidade": { "type": "number" }, "obs": { "type": "string" } } } },
+          "perfil": { "type": "string", "description": "perfil/permission set com que o teste roda (quando relevante)" },
+          "passos": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["n", "acao"], "properties": { "n": { "type": "number" }, "acao": { "type": "string", "minLength": 3 } } } },
+          "esperado": {
+            "type": "array", "minItems": 1,
+            "items": { "type": "object", "required": ["texto", "verificacao"], "properties": {
+              "texto": { "type": "string", "minLength": 3 },
+              "verificacao": { "type": "object", "required": ["tipo"], "properties": { "tipo": { "enum": ["texto-visivel", "texto-ausente", "url", "elemento-visivel", "elemento-ausente", "valor-campo", "semantica"] }, "alvo": { "type": "object" }, "valor": { "type": "string" } } }
+            } }
+          }
+        }
+      }
+    }
+  }
+}

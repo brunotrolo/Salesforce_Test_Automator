@@ -1,0 +1,2 @@
+- [ ] T1 Criar Flow de intake
+- [ ] T2 [GATE-1] Confirmar nome do campo de canal de origem

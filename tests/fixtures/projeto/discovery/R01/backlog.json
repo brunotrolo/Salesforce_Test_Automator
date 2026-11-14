@@ -1,0 +1,101 @@
+{
+  "schema": "1.0",
+  "project": {
+    "name": "Atendimento — Produtos Financeiros",
+    "updated": "2026-11-14"
+  },
+  "rounds": [
+    {
+      "id": "R01",
+      "date": "2026-11-10",
+      "sources": [
+        "S01"
+      ],
+      "participants": [
+        "PO",
+        "Atendimento"
+      ]
+    }
+  ],
+  "epics": [
+    {
+      "id": "E-001",
+      "title": "Busca de cliente mais rápida",
+      "objective": "Reduzir o tempo para localizar o cliente no início do atendimento.",
+      "domain": "busca-cliente",
+      "products": [
+        "Cartão"
+      ],
+      "personas": [
+        "Atendente"
+      ],
+      "evidence": [
+        "S01:L1-2"
+      ],
+      "status": "rascunho",
+      "open_questions": [
+        {
+          "id": "Q-001",
+          "text": "Quais produtos entram na primeira entrega?",
+          "kind": "negocio",
+          "evidence": [
+            "S01:L2"
+          ]
+        }
+      ],
+      "stories": [
+        {
+          "id": "US-001",
+          "title": "Localizar cliente por documento",
+          "persona": "Atendente",
+          "want": "buscar o cliente pelo documento",
+          "so_that": "iniciar o atendimento sem perguntar dados já conhecidos",
+          "acceptance": [
+            {
+              "given": "um documento válido",
+              "when": "o atendente busca",
+              "then": "o cliente aparece com seus produtos",
+              "evidence": [
+                "S01:L1"
+              ]
+            }
+          ],
+          "business_rules": [
+            {
+              "text": "O documento nunca é exibido completo na tela",
+              "evidence": [
+                "S01:L2"
+              ]
+            }
+          ],
+          "evidence": [
+            "S01:L1-2"
+          ],
+          "priority": "MUST",
+          "classification_hint": "desconhecido",
+          "domain": "busca-cliente",
+          "compliance_flags": [
+            "LGPD"
+          ],
+          "status": "rascunho",
+          "ready_for_design": false,
+          "tasks": [
+            {
+              "id": "ST-001",
+              "title": "Definir campos exibidos no resultado",
+              "description": "Alinhar com o negócio.",
+              "evidence": [
+                "S01:L2"
+              ]
+            }
+          ],
+          "handoff": {
+            "domain": "atendimento",
+            "capability": "001-intake-de-caso",
+            "date": "2026-11-14"
+          }
+        }
+      ]
+    }
+  ]
+}

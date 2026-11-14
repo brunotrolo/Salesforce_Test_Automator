@@ -1,0 +1,27 @@
+{
+  "schema": "1.0", "capacidade": "001-intake-de-caso",
+  "navegacao_base": { "app": "Service Console", "caminho": ["Casos", "Novo"] },
+  "casos": [
+    { "id": "TC-001", "titulo": "Salvar caso com assunto e prioridade mostra o número do caso", "tipo": "funcional", "prioridade": "P1",
+      "oraculos": ["O-001"], "gaps_relacionados": ["O-008"], "pre_condicoes": ["Cliente identificado"],
+      "massa": [{ "ref": "cliente", "entidade": "Account", "atributos": { "Name": "Cliente Teste" }, "quantidade": 1 }],
+      "passos": [{ "n": 1, "acao": "Abrir novo caso para o cliente" }, { "n": 2, "acao": "Informar assunto e prioridade e salvar" }],
+      "esperado": [{ "texto": "O número do caso aparece na tela", "verificacao": { "tipo": "elemento-visivel", "alvo": { "rotulo": "Número do caso" } } }] },
+    { "id": "TC-002", "titulo": "Salvar sem assunto mostra a mensagem de assunto obrigatório", "tipo": "negativo", "prioridade": "P1",
+      "oraculos": ["O-002", "O-012"],
+      "passos": [{ "n": 1, "acao": "Abrir novo caso" }, { "n": 2, "acao": "Salvar sem preencher o assunto" }],
+      "esperado": [{ "texto": "A tela mostra \"Informe o assunto\"", "verificacao": { "tipo": "texto-visivel", "valor": "Informe o assunto" } }] },
+    { "id": "TC-003", "titulo": "Prioridade Alta sem descrição é recusada", "tipo": "negativo", "prioridade": "P2",
+      "oraculos": ["O-003"],
+      "passos": [{ "n": 1, "acao": "Abrir novo caso" }, { "n": 2, "acao": "Escolher prioridade Alta, deixar a descrição vazia e salvar" }],
+      "esperado": [{ "texto": "O caso não é salvo e a descrição é exigida", "verificacao": { "tipo": "semantica" } }] },
+    { "id": "TC-004", "titulo": "Assunto com 255 caracteres é aceito e com 256 é recusado", "tipo": "limite", "prioridade": "P2",
+      "oraculos": ["O-005", "O-013"],
+      "passos": [{ "n": 1, "acao": "Salvar caso com assunto de 255 caracteres" }, { "n": 2, "acao": "Salvar caso com assunto de 256 caracteres" }],
+      "esperado": [{ "texto": "255 salva; 256 mostra erro de tamanho", "verificacao": { "tipo": "semantica" } }] },
+    { "id": "TC-005", "titulo": "Busca por documento mostra cliente com produtos e documento mascarado", "tipo": "lgpd", "prioridade": "P1",
+      "oraculos": ["O-010", "O-011"],
+      "passos": [{ "n": 1, "acao": "Buscar o cliente pelo documento" }],
+      "esperado": [{ "texto": "O cliente aparece com seus produtos", "verificacao": { "tipo": "texto-visivel", "valor": "Cliente Teste" } }, { "texto": "O documento completo não aparece", "verificacao": { "tipo": "texto-ausente", "valor": "000.000.000-00" } }] }
+  ]
+}
