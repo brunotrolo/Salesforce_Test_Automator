@@ -5,17 +5,12 @@ import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { runDir, ensureDir, findOrgAlias } from '../lib/config.mjs';
-import { Engine } from './engine.mjs';
-import { makeSf } from '../massa.mjs';
+import { runDir, ensureDir } from '../lib/config.mjs';
+import { criarEngine } from './factory.mjs';
 
 const a = process.argv.slice(2); const v = (n) => { const i = a.indexOf(n); return i > -1 ? a[i + 1] : undefined; };
 const run = v('--run'); const sess = v('--session') || 's1'; const dir = ensureDir(runDir(run));
-const pre = existsSync(join(dir, 'preflight.json')) ? JSON.parse(readFileSync(join(dir, 'preflight.json'), 'utf8')) : {};
-const alias = findOrgAlias()?.alias;
-const sf = alias ? makeSf({ org: alias }) : null;
-const eng = new Engine({ runDir: dir, instanceUrl: pre.org?.instanceUrl ?? null, baseUrl: v('--base-url') ?? null, headless: !a.includes('--headed'),
-  sfOpen: sf ? async () => sf(['org', 'open', '--target-org', alias, '--url-only', '--json'])?.result?.url : null });
+const eng = criarEngine(run, { baseUrl: v('--base-url') ?? null, headless: !a.includes('--headed') });
 const file = join(dir, `engine-${sess}.json`); const token = randomBytes(16).toString('hex');
 
 const cmds = {

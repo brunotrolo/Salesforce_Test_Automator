@@ -10,7 +10,7 @@ const HTML = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><tit
 <qa-case-form hidden></qa-case-form><div id="resultado" role="status"></div><div id="toasts"></div><div id="banner"></div><button id="excluir" type="button">Excluir caso</button></section>
 <section id="clientes" hidden><label for="doc">Documento</label><input id="doc"><button id="buscar" type="button">Buscar</button><table id="res" hidden><tr><td>Cliente Teste</td><td>•••.456.789-••</td><td>Cartão, Conta</td></tr></table></section>
 <script>
-const Q = new URLSearchParams(location.search); const bug = Q.get('bug');
+const G = __FLAGS__; const QS = new URLSearchParams(location.search); const Q = { get: (k) => QS.get(k) ?? G[k] ?? null }; const bug = Q.get('bug');
 let contador = 0;
 customElements.define('qa-case-form', class extends HTMLElement {
   connectedCallback() {
@@ -39,9 +39,10 @@ document.getElementById('excluir').onclick = () => { document.getElementById('re
 </script></body></html>`;
 
 export function startFixture(port = 0) {
+  const flags = {};
   const srv = http.createServer((req, res) => {
     if (req.url.startsWith('/api/salvar')) { res.writeHead(req.url.includes('bug=5xx') ? 500 : 200, { 'content-type': 'application/json' }); return res.end('{}'); }
-    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(HTML);
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(HTML.replace('__FLAGS__', JSON.stringify(flags)));
   });
-  return new Promise((resolve) => srv.listen(port, '127.0.0.1', () => resolve({ url: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) })));
+  return new Promise((resolve) => srv.listen(port, '127.0.0.1', () => resolve({ url: `http://127.0.0.1:${srv.address().port}`, setFlags: (f) => { for (const k of Object.keys(flags)) delete flags[k]; Object.assign(flags, f); }, close: () => new Promise((r) => srv.close(r)) })));
 }

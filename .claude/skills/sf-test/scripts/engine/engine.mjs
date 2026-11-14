@@ -46,6 +46,7 @@ export class Engine {
   setMassa(m) { this.massa = m || {}; }
 
   async begin(casoId) {
+    const mf = join(this.runDir, 'massa_resolvida.json'); if (existsSync(mf)) { try { this.massa = JSON.parse(readFileSync(mf, 'utf8')); } catch { /* massa ilegível: segue com a atual */ } }
     this.caso = { id: casoId, inicio: Date.now(), passos: [], achados: [] };
     this.buf = { console: [], paginaErros: [], respostas: [], notificacoes: [] };
     this.spinnerMs = 0; return { caso: casoId, via: this.via };

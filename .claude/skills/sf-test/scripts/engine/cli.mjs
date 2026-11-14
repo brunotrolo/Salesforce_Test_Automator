@@ -7,18 +7,13 @@ import { spawn } from 'node:child_process';
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import http from 'node:http';
 import { runDir, ensureDir } from '../lib/config.mjs';
+import { post } from './client.mjs';
 
 const a = process.argv.slice(2); const cmd = a[0]; const v = (n) => { const i = a.indexOf(n); return i > -1 ? a[i + 1] : undefined; };
 const run = v('--run'); const sess = v('--session') || 's1'; if (!cmd || !run) { console.error('Uso: cli.mjs <start|massa|begin|observe|act|assert|end|close> [json] --run <id> [--session s]'); process.exit(1); }
 const file = join(runDir(run), `engine-${sess}.json`);
 const out = (o, code = 0) => { console.log(JSON.stringify(o)); process.exit(code); };
-const post = (info, path, body) => new Promise((res, rej) => {
-  const req = http.request({ host: '127.0.0.1', port: info.port, path: `/${path}`, method: 'POST', headers: { 'x-sft-token': info.token, 'content-type': 'application/json' } }, (r) => { let d = ''; r.on('data', (c) => (d += c)); r.on('end', () => { try { res(JSON.parse(d)); } catch { rej(new Error('resposta inválida')); } }); });
-  req.on('error', rej); req.end(JSON.stringify(body ?? {}));
-});
-
 if (cmd === 'start') {
   if (existsSync(file)) { try { const i = JSON.parse(readFileSync(file, 'utf8')); if (i.port) { await post(i, 'observe', { aria: false }); out({ ok: true, ja_iniciado: true, via: i.via }); } } catch { /* sessão antiga: reinicia */ } }
   ensureDir(runDir(run)); writeFileSync(file, '{}');
