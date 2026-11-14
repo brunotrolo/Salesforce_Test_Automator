@@ -1,0 +1,5 @@
+node_modules/
+.sf-test/
+.env
+.env.*
+*.local.json

@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Grep|Glob|Edit|Write",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/skills/sf-test/scripts/guard-qa.mjs\"" }]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(node .claude/skills/sf-test/scripts/:*)",
+      "Bash(sf data query:*)",
+      "Bash(sf org display:*)",
+      "Bash(sf --version)"
+    ],
+    "deny": ["Read(./.sf-test/auth/**)", "Read(./.env)", "Read(./.env.*)"]
+  }
+}

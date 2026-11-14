@@ -1,0 +1,13 @@
+{
+  "name": "salesforce-test-automator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "QA autônomo de tela para Salesforce Service Cloud: caderno de teste, massa, execução com Playwright e relatório",
+  "scripts": {
+    "testar": "node --test tests/*.test.mjs",
+    "verificar": "node scripts/verify-skills.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "playwright": ">=1.50.0" }
+}
