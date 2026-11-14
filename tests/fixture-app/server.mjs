@@ -1,5 +1,5 @@
 // App de teste que imita um console Lightning (abas, componente com shadow DOM, toasts, validações) com BUGS PLANTADOS por query string.
-// ?bug=alta|limite|erro|object|console|5xx  ?drift=1  ?odd=1  ?spin=1
+// ?bug=alta|limite|erro|object|console|5xx  ?drift=1  ?odd=1  ?spin=1  ?msg=<texto>  ?ffbug=1 (não mostra o número do caso no Firefox)
 import http from 'node:http';
 
 const HTML = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Service Console</title>
@@ -23,7 +23,7 @@ customElements.define('qa-case-form', class extends HTMLElement {
       if (prio === 'Alta' && !desc.trim() && bug !== 'alta') { erro.textContent = 'Descrição obrigatória para prioridade Alta'; return; }
       contador++; const num = String(contador).padStart(5, '0');
       if (bug === '5xx') await fetch('/api/salvar?bug=5xx').catch(() => {});
-      document.getElementById('resultado').innerHTML = '<span>Número do caso: </span><b>' + num + '</b>' + (bug === 'object' ? '<p>Cliente: [object Object]</p>' : '');
+      if (!(Q.get('ffbug') && /Firefox/.test(navigator.userAgent))) document.getElementById('resultado').innerHTML = '<span>Número do caso: </span><b>' + num + '</b>' + (bug === 'object' ? '<p>Cliente: [object Object]</p>' : '');
       if (bug === 'erro') document.getElementById('toasts').innerHTML = '<div class="slds-notify" role="alert">An unexpected error occurred. Error ID: 4711</div>';
       if (bug === 'console') setTimeout(() => { throw new Error('Uncaught TypeError: x is undefined'); }, 10);
       if (Q.get('odd')) document.getElementById('banner').textContent = 'Atendimento marcado como VIP';

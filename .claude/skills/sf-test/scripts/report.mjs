@@ -13,6 +13,7 @@ export function montarRelatorio({ run, classificacao, caderno, basis, massaLog =
   const casos = classificacao.casos; const bugs = [];
   for (const c of casos.filter((x) => x.veredito === 'BUG')) bugs.push({ tipo: 'negocio', caso: c.caso, titulo: c.titulo, severidade: c.severidade ?? 'media', motivo: c.motivo, oraculos: c.oraculos, evidencias: c.evidencias });
   for (const t of classificacao.tecnicos.filter((x) => x.veredito === 'BUG')) bugs.push({ tipo: 'tecnico', inv: t.inv, titulo: `Defeito técnico ${t.inv}: ${cur(t.evidencia, 70)}`, severidade: t.severidade, motivo: t.motivo, casos: t.casos });
+  for (const c of (classificacao.compat ?? []).filter((x) => x.veredito === 'BUG')) bugs.push({ tipo: 'compatibilidade', caso: c.caso, titulo: `Diverge no ${c.navegador}: ${c.titulo ?? c.caso}`, severidade: c.severidade, motivo: `${c.detalhe} (passa no ${c.referencia})`, navegador: c.navegador, referencia: c.referencia });
   bugs.forEach((b, i) => { b.id = `BUG-${String(i + 1).padStart(3, '0')}`; });
   const aConf = casos.filter((c) => c.veredito === 'A_CONFIRMAR'); const bloq = casos.filter((c) => c.veredito === 'BLOQUEADO'); const mud = casos.filter((c) => c.veredito === 'MUDANCA_NAO_DOCUMENTADA'); const prev = casos.filter((c) => c.veredito === 'PREVISTO'); const inst = casos.filter((c) => c.veredito === 'INSTAVEL'); const ok = casos.filter((c) => c.veredito === 'PASSOU');
   const orc = new Map((basis?.oracles ?? []).map((o) => [o.id, o]));
@@ -20,7 +21,7 @@ export function montarRelatorio({ run, classificacao, caderno, basis, massaLog =
   const resolvido = (id) => casos.some((c) => (c.oraculos || []).includes(id) && ['PASSOU', 'PREVISTO'].includes(c.veredito));
   const cobertos = exigidos.filter((o) => resolvido(o.id)).length;
   const p1Bloq = bloq.filter((c) => c.prioridade === 'P1');
-  const gate = bugs.length ? 'REPROVADO' : (p1Bloq.length || !casos.length) ? 'NAO_CONCLUIDO' : (aConf.length || mud.length) ? 'APROVADO_COM_PENDENCIAS' : 'APROVADO';
+  const instNav = (classificacao.compat ?? []).filter((x) => x.veredito === 'INSTAVEL'); const gate = bugs.length ? 'REPROVADO' : (p1Bloq.length || !casos.length) ? 'NAO_CONCLUIDO' : (aConf.length || mud.length) ? 'APROVADO_COM_PENDENCIAS' : 'APROVADO';
   const icone = { REPROVADO: '❌', NAO_CONCLUIDO: '⛔', APROVADO_COM_PENDENCIAS: '⚠️', APROVADO: '✅' }[gate];
   const L = [`# QA de tela — ${caderno?.capacidade ?? '?'} · ${data} · execução ${run}`, '',
     `**${icone} ${gate.replace(/_/g, ' ')}** — ${ok.length} passaram · ${bugs.length} bug(s) · ${mud.length ? `${mud.length} mudança(s) não documentada(s) · ` : ''}${aConf.length} a confirmar · ${prev.length} previstos · ${bloq.length} bloqueados${inst.length ? ` · ${inst.length} instáveis` : ''} (de ${casos.length} casos)`,
@@ -29,6 +30,7 @@ export function montarRelatorio({ run, classificacao, caderno, basis, massaLog =
   if (mud.length) { L.push('## 📝 Mudança não documentada (a spec ficou para trás — não é bug)', ''); for (const c of mud.slice(0, 6)) L.push(`- **${c.caso}** — a tela segue ${c.evidencia_mudanca?.[0]?.id ?? 'evidência mais recente'} (${c.evidencia_mudanca?.[0]?.origem ?? '?'}), não a spec ${c.spec_a_atualizar?.fonte ? `\`${c.spec_a_atualizar.fonte.arquivo}:${c.spec_a_atualizar.fonte.linha_de}\`` : ''} → atualizar a especificação`); L.push(''); }
   if (aConf.length) { L.push('## ⚠️ A confirmar (não é bug nem sucesso)', ''); for (const c of aConf.slice(0, 8)) L.push(`- **${c.caso}** — ${cur(c.pergunta ?? c.motivo, 110)}`); if (aConf.length > 8) L.push(`- … e mais ${aConf.length - 8} em resultado.json`); L.push(''); }
   if (bloq.length) { L.push('## ⛔ Bloqueados (causa fora do produto)', ''); for (const c of bloq.slice(0, 6)) L.push(`- **${c.caso}** — ${cur(c.motivo, 100)}`); L.push(''); }
+  const ci = classificacao.compat_info; if (ci) L.push(`🌐 Navegadores: ${ci.testados.join(', ')}${Object.keys(ci.indisponiveis ?? {}).length ? ` · **não testados:** ${Object.entries(ci.indisponiveis).map(([n, m]) => `${n} (${String(m).slice(0, 60)})`).join(', ')}` : ''}${instNav.length ? ` · instáveis: ${instNav.map((x) => `${x.caso}@${x.navegador}`).join(', ')}` : ''}`);
   if (prev.length) L.push(`ℹ️ Previstos (diferença já documentada): ${prev.map((c) => c.caso).join(', ')}`);
   if (inst.length) L.push(`🔁 Instáveis: ${inst.map((c) => c.caso).join(', ')}`);
   if (classificacao.precisa_rerun?.length) L.push(`↻ Falta reexecutar para confirmar: ${classificacao.precisa_rerun.join(', ')}`);
@@ -42,12 +44,13 @@ export function montarRelatorio({ run, classificacao, caderno, basis, massaLog =
 export function bugMd(b, { caderno, basis }) {
   const caso = caderno?.casos?.find((c) => c.id === b.caso); const orc = new Map((basis?.oracles ?? []).map((o) => [o.id, o]));
   const L = [`# ${b.id} — ${b.titulo}`, '', `Severidade: **${b.severidade}** · Tipo: ${b.tipo === 'tecnico' ? `defeito técnico (${b.inv})` : 'comportamento contraria a especificação'}`, ''];
-  if (b.tipo === 'negocio') {
+  if (b.tipo === 'compatibilidade') L.push('## O que aconteceu', `- O caso ${b.caso} passa no ${b.referencia} e falha no ${b.navegador}: ${b.motivo}`, '', 'Reproduzir: rode `executar.mjs replay --browsers ' + `${b.referencia},${b.navegador}` + '` ou repita os passos do caderno nesse navegador.');
+  else if (b.tipo === 'negocio') {
     L.push('## O que a especificação diz');
     for (const id of b.oraculos || []) { const o = orc.get(id); if (o) L.push(`- ${o.texto}${o.fonte ? ` — \`${o.fonte.arquivo}:${o.fonte.linha_de}\`` : ''}`); }
     L.push('', '## Como reproduzir', ...(caso?.passos ?? []).map((p) => `${p.n}. ${p.acao}`), '', '## Esperado', ...(caso?.esperado ?? []).map((e) => `- ${e.texto}`), '', `## Observado`, `- ${b.motivo}`);
     if (b.evidencias?.png) L.push('', `Evidência: \`${b.evidencias.png}\`${b.evidencias.aria ? `, \`${b.evidencias.aria}\`` : ''}`);
-  } else L.push(`## Observado`, `- ${b.motivo}`, `- Casos em que apareceu: ${(b.casos || []).join(', ')}`, '', 'Reproduzir: abrir o caso na tela e repetir os passos do caderno; a evidência técnica está em `evidence/<caso>.trace.json`.');
+  } else if (b.tipo !== 'compatibilidade') L.push(`## Observado`, `- ${b.motivo}`, `- Casos em que apareceu: ${(b.casos || []).join(', ')}`, '', 'Reproduzir: abrir o caso na tela e repetir os passos do caderno; a evidência técnica está em `evidence/<caso>.trace.json`.');
   return L.join('\n') + '\n';
 }
 

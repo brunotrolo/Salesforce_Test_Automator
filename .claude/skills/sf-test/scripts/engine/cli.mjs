@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // CLI do motor (é o que o executor chama): start | massa | begin | observe | act | assert | end | close
-//   node cli.mjs start --run <id> [--session s1] [--base-url <url>] [--headed]
+//   node cli.mjs start --run <id> [--session s1] [--browser chromium|firefox|webkit] [--base-url <url>] [--headed]
 //   node cli.mjs act '{"acao":"clicar","alvo":{"papel":"button","nome":"Salvar"}}' --run <id> [--session s1]
 // Saída: uma linha JSON no stdout. Exit: 0 ok | 1 comando falhou | 2 não iniciou/login indisponível.
 import { spawn } from 'node:child_process';
@@ -17,7 +17,7 @@ const out = (o, code = 0) => { console.log(JSON.stringify(o)); process.exit(code
 if (cmd === 'start') {
   if (existsSync(file)) { try { const i = JSON.parse(readFileSync(file, 'utf8')); if (i.port) { await post(i, 'observe', { aria: false }); out({ ok: true, ja_iniciado: true, via: i.via }); } } catch { /* sessão antiga: reinicia */ } }
   ensureDir(runDir(run)); writeFileSync(file, '{}');
-  const args = [join(dirname(fileURLToPath(import.meta.url)), 'server.mjs'), '--run', run, '--session', sess, ...(v('--base-url') ? ['--base-url', v('--base-url')] : []), ...(a.includes('--headed') ? ['--headed'] : [])];
+  const args = [join(dirname(fileURLToPath(import.meta.url)), 'server.mjs'), '--run', run, '--session', sess, ...(v('--base-url') ? ['--base-url', v('--base-url')] : []), ...(v('--browser') ? ['--browser', v('--browser')] : []), ...(a.includes('--headed') ? ['--headed'] : [])];
   const p = spawn(process.execPath, args, { detached: true, stdio: 'ignore', env: process.env }); p.unref();
   for (let i = 0; i < 150; i++) {                      // até ~30 s
     await new Promise((r) => setTimeout(r, 200));

@@ -4,7 +4,7 @@
 //  3) janela do navegador, só se permitido e houver terminal; senão BLOQUEADO.
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { authDir } from '../lib/config.mjs';
+import { authDir, ambienteDe } from '../lib/config.mjs';
 import { urlAllowed } from './policy.mjs';
 
 const naTelaDeLogin = (u) => /\/login|login\.salesforce\.com|\/secur\/|identity\/saml/i.test(u);
@@ -12,7 +12,7 @@ export class LoginErro extends Error { constructor(m, codigo = 'login_falhou') {
 
 export async function entrarNaOrg({ browser, instanceUrl, sfOpen, cwd = process.cwd(), permitirJanela = false, headless = true }) {
   const tentativas = [];
-  const sessaoPath = join(authDir(cwd), 'estado.json');
+  const sessaoPath = join(authDir(cwd, ambienteDe(instanceUrl)), 'estado.json');
   const ir = async (ctx, alvo) => { const page = await ctx.newPage(); await page.goto(alvo, { timeout: 30000, waitUntil: 'domcontentloaded' }); await page.waitForLoadState('load', { timeout: 15000 }).catch(() => {}); return page; };
   const ok = (page) => !naTelaDeLogin(page.url()) && urlAllowed(page.url(), { instanceUrl });
 

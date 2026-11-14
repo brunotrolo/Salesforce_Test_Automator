@@ -4,7 +4,7 @@
 import { chmodSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import readline from 'node:readline';
-import { authDir, ensureDir, findOrgAlias } from './lib/config.mjs';
+import { authDir, ensureDir, ambienteDe } from './lib/config.mjs';
 import { loadPlaywright } from './lib/pw.mjs';
 import { runChecks } from './preflight.mjs';
 
@@ -16,6 +16,6 @@ const b = await chromium.launch({ headless: false }); const ctx = await b.newCon
 await page.goto(org.instanceUrl);
 console.error('Faça o login na janela (inclusive o segundo fator). Quando a tela inicial abrir, volte aqui e aperte Enter.');
 await new Promise((res) => readline.createInterface({ input: process.stdin }).once('line', res));
-const dir = ensureDir(authDir(), 0o700); const f = join(dir, 'estado.json');
+const dir = ensureDir(authDir(process.cwd(), ambienteDe(org.instanceUrl)), 0o700); const f = join(dir, 'estado.json');
 await ctx.storageState({ path: f }); chmodSync(f, 0o600); await b.close();
 console.error(`Sessão guardada em ${f}`);

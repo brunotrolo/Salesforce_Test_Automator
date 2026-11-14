@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runDir } from './lib/config.mjs';
 import { norm } from './lib/md.mjs';
+import { compararNavegadores } from './compat.mjs';
 import { lerDecisoes, impressao, impressaoTecnica, registrarPrecedentes, lerPrecedentes } from './knowledge.mjs';
 
 const SEV_INV = { 'INV-001': 'alta', 'INV-002': 'alta', 'INV-005': 'alta', 'INV-003': 'media', 'INV-004': 'media' };
@@ -32,7 +33,7 @@ export function candidatosMudanca(basis, observado, excluir = []) {
 
 const falhasDe = (r) => r.verificacoes.filter((v) => v.pass === false).map((v) => v.texto);
 
-export function classificar({ basis, caderno, resultados, reruns = {}, juiz = {}, decisoes = {}, precedentes = {}, observado = {} }) {
+export function classificar({ basis, caderno, resultados, reruns = {}, juiz = {}, decisoes = {}, precedentes = {}, observado = {}, compat = [], compatInfo = null }) {
   const orc = new Map(basis.oracles.map((o) => [o.id, o])); const casos = []; const precisaRerun = []; const pacotes = [];
   for (const r of resultados) {
     const caso = caderno.casos.find((c) => c.id === r.caso); const base = { caso: r.caso, titulo: r.titulo, prioridade: r.prioridade, oraculos: r.oraculos, evidencias: r.evidencias };
@@ -68,8 +69,8 @@ export function classificar({ basis, caderno, resultados, reruns = {}, juiz = {}
       motivo: dec ? `decisão registrada do dev` : reproduzido ? `invariante ${t.inv} violada (vista ${t.vistos}×)` : `invariante ${t.inv} vista uma vez: reexecutar para confirmar` }; });
   for (const t of tecnicos) if (!t.reproduzido && !decisoes[t.impressao]) for (const c of t.casos) if (!precisaRerun.includes(c)) precisaRerun.push(c);
   const conta = (v) => casos.filter((c) => c.veredito === v).length;
-  const resumo = { mudanca_nao_documentada: conta('MUDANCA_NAO_DOCUMENTADA'), passou: conta('PASSOU'), bug: conta('BUG'), previsto: conta('PREVISTO'), a_confirmar: conta('A_CONFIRMAR'), bloqueado: conta('BLOQUEADO'), instavel: conta('INSTAVEL'), bugs_tecnicos: tecnicos.filter((t) => t.veredito === 'BUG').length, total: casos.length };
-  return { casos, tecnicos, resumo, precisa_rerun: [...new Set(precisaRerun)], pacotes_juiz: pacotes };
+  const resumo = { bugs_compat: compat.filter((c) => c.veredito === 'BUG').length, mudanca_nao_documentada: conta('MUDANCA_NAO_DOCUMENTADA'), passou: conta('PASSOU'), bug: conta('BUG'), previsto: conta('PREVISTO'), a_confirmar: conta('A_CONFIRMAR'), bloqueado: conta('BLOQUEADO'), instavel: conta('INSTAVEL'), bugs_tecnicos: tecnicos.filter((t) => t.veredito === 'BUG').length, total: casos.length };
+  return { casos, tecnicos, compat, compat_info: compatInfo, resumo, precisa_rerun: [...new Set(precisaRerun)], pacotes_juiz: pacotes };
 }
 
 function aplicarJuiz(j, r, temEvidenciaDeMudanca = false) {
@@ -87,12 +88,15 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const a = process.argv.slice(2); const i = a.indexOf('--run'); if (i < 0) { console.error('Uso: classify.mjs --run <id>'); process.exit(1); }
   const dir = runDir(a[i + 1]); const rd = (p, d) => { try { return JSON.parse(readFileSync(join(dir, p), 'utf8')); } catch { return d; } };
   const lista = (sub, ext) => existsSync(join(dir, sub)) ? readdirSync(join(dir, sub)).filter((n) => n.endsWith(ext)) : [];
-  const resultados = lista('resultados', '.json').filter((n) => !n.includes('.rerun')).map((n) => rd(`resultados/${n}`, null)).filter(Boolean);
+  const resultados = lista('resultados', '.json').filter((n) => /^TC-\d{3}\.json$/.test(n)).map((n) => rd(`resultados/${n}`, null)).filter(Boolean);
+  const info = rd('compat_navegadores.json', null); const outros = {};
+  for (const n of lista('resultados', '.json')) { const m = n.match(/^TC-\d{3}\.(chromium|firefox|webkit)\.json$/); if (m) (outros[m[1]] ??= []).push(rd(`resultados/${n}`, null)); }
+  const compat = info ? compararNavegadores({ referencia: info.referencia, ref: resultados, outros }) : [];
   const reruns = Object.fromEntries(lista('resultados', '.rerun.json').map((n) => { const x = rd(`resultados/${n}`, null); return [x.caso, x]; }));
   const juiz = Object.fromEntries(lista('juiz', '.json').filter((n) => n.startsWith('resultado-')).map((n) => { const x = rd(`juiz/${n}`, null); return [x.caso, x]; }));
   const lerObs = (r) => { try { return readFileSync(r.evidencias.aria, 'utf8'); } catch { return ''; } };
   const observado = Object.fromEntries(resultados.map((r) => [r.caso, lerObs(r)]));
-  const out = classificar({ basis: rd('test_basis.json', { oracles: [], questions: [] }), caderno: rd('caderno.json', { casos: [] }), resultados, reruns, juiz, decisoes: lerDecisoes(), precedentes: lerPrecedentes(), observado });
+  const out = classificar({ basis: rd('test_basis.json', { oracles: [], questions: [] }), caderno: rd('caderno.json', { casos: [] }), resultados, reruns, juiz, decisoes: lerDecisoes(), precedentes: lerPrecedentes(), observado, compat, compatInfo: info });
   mkdirSync(join(dir, 'juiz'), { recursive: true }); for (const p of out.pacotes_juiz) writeFileSync(join(dir, 'juiz', `pacote-${p.caso}.json`), JSON.stringify(p, null, 2));
   writeFileSync(join(dir, 'classificacao.json'), JSON.stringify(out, null, 2)); registrarPrecedentes(a[i + 1], out.casos.filter((c) => c.veredito !== 'PASSOU').map((c) => ({ impressao: c.impressao, veredito: c.veredito })));
   console.log(JSON.stringify({ ok: true, resumo: out.resumo, precisa_rerun: out.precisa_rerun, juiz_pendente: out.pacotes_juiz.map((p) => p.caso) }));

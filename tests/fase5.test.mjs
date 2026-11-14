@@ -32,7 +32,7 @@ test('aprender: o agente executa uma vez, o resultado nasce das asserções e a 
   fx.setFlags({}); const cwd = tmp(); const e = await motor(cwd);
   const r = await aprender(e, casoFeliz, acts(), cwd); await e.close();
   assert.equal(r.status, 'verde'); assert.equal(r.via, 'aprendizado'); assert.ok(r.jornada.hash);
-  const c = J.carregarJornada(CAP, casoFeliz, cwd); assert.equal(c.estado, 'ok'); assert.equal(c.jornada.passos.length, 5);
+  const c = J.carregarJornada(CAP, casoFeliz, cwd, 'local'); assert.equal(c.estado, 'ok'); assert.equal(c.jornada.passos.length, 5);
   assert.ok(existsSync(join(cwd, 'run', 'resultados', 'TC-001.json')));
 });
 
@@ -42,7 +42,7 @@ test('replay: reproduz sem modelo, conta verdes seguidos e promove após 3', asy
     e = await motor(cwd); const r = await executarReplay({ motor: e, caderno: { ...caderno, casos: [casoFeliz] }, capacidade: CAP, runPath: join(cwd, 'run'), cwd }); await e.close();
     assert.equal(r.resultados[0].status, 'verde'); assert.equal(r.resultados[0].via, 'replay'); assert.equal(r.pendentes.length, 0);
   }
-  const est = J.lerEstabilidade(CAP, cwd)['TC-001']; assert.equal(est.promovida, true); assert.ok(est.verdes_seguidos >= 3);
+  const est = J.lerEstabilidade(CAP, cwd, 'local')['TC-001']; assert.equal(est.promovida, true); assert.ok(est.verdes_seguidos >= 3);
 });
 
 test('bug de negócio: a jornada aprendida num app correto reprova no app com a regra quebrada (vermelho, não bloqueado)', async () => {
@@ -51,7 +51,7 @@ test('bug de negócio: a jornada aprendida num app correto reprova no app com a 
   assert.equal(r0.status, 'verde');
   fx.setFlags({ bug: 'alta' }); e = await motor(cwd);
   const r = await executarReplay({ motor: e, caderno: { ...caderno, casos: [casoAlta] }, capacidade: CAP, runPath: join(cwd, 'run'), cwd }); await e.close();
-  assert.equal(r.resultados[0].status, 'vermelho'); assert.equal(r.resultados[0].verificacoes[0].pass, false); assert.equal(J.lerEstabilidade(CAP, cwd)['TC-003'].verdes_seguidos, 0);
+  assert.equal(r.resultados[0].status, 'vermelho'); assert.equal(r.resultados[0].verificacoes[0].pass, false); assert.equal(J.lerEstabilidade(CAP, cwd, 'local')['TC-003'].verdes_seguidos, 0);
   fx.setFlags({});
 });
 
@@ -61,7 +61,7 @@ test('cura: UI mudou (botão renomeado) → replay para no passo, agente continu
   const rep = await executarReplay({ motor: e, caderno: { ...caderno, casos: [casoFeliz] }, capacidade: CAP, runPath: join(cwd, 'run'), cwd }); await e.close();
   assert.equal(rep.resultados.length, 0); assert.equal(rep.pendentes[0].handoff.parou_no_passo, 5); assert.equal(rep.pendentes[0].handoff.codigo, 'alvo_nao_encontrado');
   // o agente: leva a tela até o passo 4 e termina com o rótulo novo
-  e = await motor(cwd); const j = J.carregarJornada(CAP, casoFeliz, cwd).jornada; await e.begin('TC-001');
+  e = await motor(cwd); const j = J.carregarJornada(CAP, casoFeliz, cwd, 'local').jornada; await e.begin('TC-001');
   for (const p of j.passos.slice(0, 4)) assert.equal((await e.act(p)).ok, true);
   assert.equal((await e.act({ acao: 'clicar', alvo: { papel: 'button', nome: 'Gravar' } })).ok, true);
   const r = await concluirCaso({ motor: e, caso: casoFeliz, capacidade: CAP, via: 'cura', runPath: join(cwd, 'run'), cwd }); await e.close();
@@ -74,9 +74,9 @@ test('cura: UI mudou (botão renomeado) → replay para no passo, agente continu
 test('jornada obsoleta: caso alterado invalida a jornada; jornada insegura é recusada', async () => {
   fx.setFlags({}); const cwd = tmp(); const e = await motor(cwd); await aprender(e, casoFeliz, acts(), cwd); await e.close();
   const alterado = { ...casoFeliz, esperado: [{ texto: 'outro', verificacao: { tipo: 'texto-visivel', valor: 'Caso criado' } }] };
-  assert.equal(J.carregarJornada(CAP, alterado, cwd).estado, 'obsoleta');
-  assert.throws(() => J.salvarJornada({ ...J.carregarJornada(CAP, casoFeliz, cwd).jornada, passos: [{ acao: 'clicar', alvo: { seletor: '//button' } }] }, cwd), /XPath/);
-  assert.throws(() => J.salvarJornada({ ...J.carregarJornada(CAP, casoFeliz, cwd).jornada, passos: [{ acao: 'ir', url: 'https://evil.example.com' }] }, cwd), /caminho relativo/);
+  assert.equal(J.carregarJornada(CAP, alterado, cwd, 'local').estado, 'obsoleta');
+  assert.throws(() => J.salvarJornada({ ...J.carregarJornada(CAP, casoFeliz, cwd, 'local').jornada, passos: [{ acao: 'clicar', alvo: { seletor: '//button' } }] }, cwd), /XPath/);
+  assert.throws(() => J.salvarJornada({ ...J.carregarJornada(CAP, casoFeliz, cwd, 'local').jornada, passos: [{ acao: 'ir', url: 'https://evil.example.com' }] }, cwd), /caminho relativo/);
   const m2 = await motor(cwd); const sem = await executarReplay({ motor: m2, caderno: { ...caderno, casos: [alterado] }, capacidade: CAP, runPath: join(cwd, 'run'), cwd }); await m2.close();
   assert.match(sem.pendentes[0].motivo, /obsoleta/);
 });
@@ -90,4 +90,31 @@ test('resultado bruto: semântica pendente, bloqueio por massa/política e verif
   assert.equal(montarResultado({ ...base, trace: trace(ok), verificacoes: [{ pass: false }], via: 'replay' }).status, 'vermelho');
   assert.equal(montarResultado({ ...base, trace: trace([{ n: 1, ok: false, codigo: 'massa_ausente', acao: 'preencher' }]), verificacoes: [{ pass: false }], via: 'aprendizado' }).status, 'bloqueado');
   assert.equal(montarResultado({ ...base, trace: trace([...ok, { n: 2, ok: false, codigo: 'politica', acao: 'clicar' }]), verificacoes: [{ pass: false }], via: 'aprendizado' }).status, 'bloqueado');
+});
+
+// ---- ambiente (org): jornadas e sessão separadas; a de outro ambiente só vale como semente
+const { ambienteDe, authDir } = await import(`../${S}/lib/config.mjs`);
+
+test('ambiente: id derivado do host (loopback = local); sessão salva fica por ambiente', () => {
+  assert.equal(ambienteDe('https://acme--sbx.sandbox.my.salesforce.com/lightning'), 'acme--sbx.sandbox.my.salesforce.com');
+  assert.equal(ambienteDe('http://127.0.0.1:3000'), 'local'); assert.equal(ambienteDe('lixo'), 'default');
+  assert.match(authDir('/p', 'acme--sbx.sandbox.my.salesforce.com'), /auth[\\/]acme--sbx/); assert.match(authDir('/p'), /auth$/);
+});
+
+test('ambiente: jornada é por ambiente; a de outro ambiente vira semente — reproduz, vale se passar e é regravada no novo ambiente', async () => {
+  fx.setFlags({}); const cwd = tmp(); let e = await motor(cwd); await aprender(e, casoFeliz, acts(), cwd); await e.close();          // aprendida no ambiente "local"
+  assert.equal(J.carregarJornada(CAP, casoFeliz, cwd, 'outra-sandbox').estado, 'ausente');                                      // outro ambiente não enxerga
+  const sm = J.sementeDeOutroAmbiente(CAP, casoFeliz, cwd, 'outra-sandbox'); assert.equal(sm.derivada_de, 'local');
+  e = await motor(cwd); e.ambiente = 'outra-sandbox';                                                                              // mesma tela, "outra org"
+  const r = await executarReplay({ motor: e, caderno: { ...caderno, casos: [casoFeliz] }, capacidade: CAP, runPath: join(cwd, 'run'), cwd }); await e.close();
+  assert.equal(r.resultados[0].via, 'replay-semente'); assert.equal(r.resultados[0].status, 'verde');
+  const nova = J.carregarJornada(CAP, casoFeliz, cwd, 'outra-sandbox'); assert.equal(nova.estado, 'ok'); assert.equal(nova.jornada.semeada_de, 'local'); assert.equal(J.lerEstabilidade(CAP, cwd, 'outra-sandbox')['TC-001'].verdes_seguidos, 1);
+  assert.equal(J.lerEstabilidade(CAP, cwd, 'local')['TC-001'].verdes_seguidos, 1);                                               // contagens independentes
+});
+
+test('ambiente: semente que não reproduz na outra org vira pendente (cura), sem marcar verde', async () => {
+  fx.setFlags({}); const cwd = tmp(); let e = await motor(cwd); await aprender(e, casoFeliz, acts(), cwd); await e.close();
+  fx.setFlags({ drift: '1' }); e = await motor(cwd); e.ambiente = 'outra-sandbox';
+  const r = await executarReplay({ motor: e, caderno: { ...caderno, casos: [casoFeliz] }, capacidade: CAP, runPath: join(cwd, 'run'), cwd }); await e.close(); fx.setFlags({});
+  assert.equal(r.resultados.length, 0); assert.match(r.pendentes[0].motivo, /outro ambiente \(local\) não reproduziu/); assert.equal(J.carregarJornada(CAP, casoFeliz, cwd, 'outra-sandbox').estado, 'ausente');
 });

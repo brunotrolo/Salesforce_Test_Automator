@@ -5,7 +5,7 @@
   "properties": {
     "schema": { "type": "string" },
     "capacidade": { "type": "string", "minLength": 1 },
-    "navegacao_base": { "type": "object", "description": "como chegar ao ponto de partida (app, aba, objeto)", "properties": { "app": { "type": "string" }, "caminho": { "type": "array", "items": { "type": "string" } } } },
+    "navegacao_base": { "type": "object", "description": "como chegar ao ponto de partida (app, aba, objeto) e, opcionalmente, como abrir o formulário", "properties": { "app": { "type": "string" }, "caminho": { "type": "array", "items": { "type": "string" } }, "formulario": { "type": "array", "items": { "type": "string" } } } },
     "casos": {
       "type": "array", "minItems": 1,
       "items": {
@@ -13,6 +13,7 @@
         "properties": {
           "id": { "type": "string", "pattern": "^TC-\\d{3}$" },
           "titulo": { "type": "string", "minLength": 3 },
+          "origem": { "type": "string", "description": "smoke quando o caso foi gerado por gerar-smoke.mjs" },
           "tipo": { "enum": ["fumaca", "funcional", "negativo", "limite", "permissao", "lgpd", "exploratorio"] },
           "prioridade": { "enum": ["P1", "P2", "P3"] },
           "oraculos": { "type": "array", "items": { "type": "string" } },

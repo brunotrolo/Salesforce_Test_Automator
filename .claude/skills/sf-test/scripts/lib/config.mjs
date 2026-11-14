@@ -6,7 +6,11 @@ import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 export const SKILL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const qaDir = (cwd = process.cwd()) => process.env.SFT_DIR || join(cwd, '.sf-test');
 export const runDir = (runId, cwd = process.cwd()) => join(qaDir(cwd), 'runs', runId);
-export const authDir = (cwd = process.cwd()) => join(qaDir(cwd), 'auth');
+/** Ambiente = a org (host). Sessão e jornadas são separadas por ambiente; loopback (testes) vira "local". */
+export function ambienteDe(url) {
+  try { const h = new URL(url).hostname.toLowerCase(); return /^(127\.0\.0\.1|localhost|\[::1\])$/.test(h) ? 'local' : h.replace(/[^a-z0-9.-]/g, '_'); } catch { return 'default'; }
+}
+export const authDir = (cwd = process.cwd(), ambiente = null) => (ambiente ? join(qaDir(cwd), 'auth', ambiente) : join(qaDir(cwd), 'auth'));
 export const knowledgeDir = (cwd = process.cwd()) => join(qaDir(cwd), 'knowledge');
 export const newRunId = (now = new Date()) => now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z').replace('T', '-');
 export function ensureDir(p, mode) { mkdirSync(p, { recursive: true, ...(mode ? { mode } : {}) }); return p; }

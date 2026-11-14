@@ -10,7 +10,7 @@ import { criarEngine } from './factory.mjs';
 
 const a = process.argv.slice(2); const v = (n) => { const i = a.indexOf(n); return i > -1 ? a[i + 1] : undefined; };
 const run = v('--run'); const sess = v('--session') || 's1'; const dir = ensureDir(runDir(run));
-const eng = criarEngine(run, { baseUrl: v('--base-url') ?? null, headless: !a.includes('--headed') });
+const eng = criarEngine(run, { baseUrl: v('--base-url') ?? null, headless: !a.includes('--headed'), navegador: v('--browser') ?? 'chromium' });
 const file = join(dir, `engine-${sess}.json`); const token = randomBytes(16).toString('hex');
 
 const cmds = {
@@ -29,7 +29,7 @@ try {
       try { send(200, await c(body ? JSON.parse(body) : {})); } catch (e) { send(200, { ok: false, codigo: e.codigo || 'erro', erro: String(e.message).slice(0, 300) }); }
     });
   });
-  srv.listen(0, '127.0.0.1', () => { writeFileSync(file, JSON.stringify({ port: srv.address().port, token, pid: process.pid, via: st.via }), { mode: 0o600 }); });
+  srv.listen(0, '127.0.0.1', () => { writeFileSync(file, JSON.stringify({ port: srv.address().port, token, pid: process.pid, via: st.via, ambiente: eng.ambiente, navegador: eng.navegador }), { mode: 0o600 }); });
   const sair = async () => { await eng.close(); rmSync(file, { force: true }); process.exit(0); };
   process.on('SIGTERM', sair); process.on('SIGINT', sair);
 } catch (e) {

@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findOrgAlias, authDir, runDir, ensureDir, newRunId, EXIT } from './lib/config.mjs';
+import { findOrgAlias, authDir, ambienteDe, runDir, ensureDir, newRunId, EXIT } from './lib/config.mjs';
 import { looksProduction } from './engine/policy.mjs';
 
 const sfRun = (args, spawn) => {
@@ -54,11 +54,11 @@ export async function runChecks({ cwd = process.cwd(), env = process.env, spawn 
 
   const via = [];
   if (org && checks.find((c) => c.id === 'sandbox')?.status === 'ok') via.push('sf-cli');
-  const sessao = join(authDir(cwd), 'estado.json');
+  const sessao = join(authDir(cwd, org ? ambienteDe(org.instanceUrl) : null), 'estado.json');
   if (existsSync(sessao)) via.push('sessao-salva');
   add('login', via.length ? 'ok' : 'falha', via.length ? `Login possível por: ${via.join(', ')}` : 'Nenhum caminho de login disponível', via.length ? undefined : 'Autentique a org no CLI (sf org login web) ou rode: node .claude/skills/sf-test/scripts/entrar.mjs (uma vez)');
   const ok = !checks.some((c) => c.status === 'falha');
-  return { ok, checks, org: org ? { host: org.host, instanceUrl: org.instanceUrl } : null, login: via, alias: found?.alias ?? null };
+  return { ok, checks, org: org ? { host: org.host, instanceUrl: org.instanceUrl, ambiente: ambienteDe(org.instanceUrl) } : null, login: via, alias: found?.alias ?? null };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

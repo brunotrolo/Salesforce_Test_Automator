@@ -3,13 +3,14 @@
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadPlaywright } from '../lib/pw.mjs';
-import { ensureDir } from '../lib/config.mjs';
+import { ensureDir, ambienteDe } from '../lib/config.mjs';
 import { maskText } from '../lib/pii.mjs';
 import { urlAllowed, targetProblems, actionAllowed, createdIdsFrom } from './policy.mjs';
 import { observar } from './observe.mjs';
 import { detectarInvariantes } from './detectors.mjs';
 import { entrarNaOrg } from './login.mjs';
 
+export const NAVEGADORES = ['chromium', 'firefox', 'webkit'];
 const TIMEOUT_PADRAO = 8000; const TIMEOUT_MAX = 20000;
 export class EngineErro extends Error { constructor(m, codigo) { super(m); this.codigo = codigo; } }
 const ID_NA_URL = /\/([0-9a-zA-Z]{15}(?:[0-9a-zA-Z]{3})?)(?=[/?#]|$)/;
@@ -25,15 +26,16 @@ export function localizar(page, alvo) {
 }
 
 export class Engine {
-  constructor({ runDir, instanceUrl = null, baseUrl = null, headless = true, sfOpen = null, cwd = process.cwd(), permitirJanela = false, limiteAssentarMs = 12000, limiteSpinnerMs = 10000 } = {}) {
-    Object.assign(this, { runDir, instanceUrl, baseUrl, headless, sfOpen, cwd, permitirJanela, limiteAssentarMs, limiteSpinnerMs });
-    this.massa = {}; this.caso = null; this.via = null;
+  constructor({ runDir, instanceUrl = null, baseUrl = null, headless = true, sfOpen = null, cwd = process.cwd(), permitirJanela = false, limiteAssentarMs = 12000, limiteSpinnerMs = 10000, navegador = 'chromium', lancador = null } = {}) {
+    Object.assign(this, { runDir, instanceUrl, baseUrl, headless, sfOpen, cwd, permitirJanela, limiteAssentarMs, limiteSpinnerMs, navegador, lancador });
+    this.massa = {}; this.caso = null; this.via = null; this.ambiente = ambienteDe(instanceUrl ?? baseUrl ?? '');
   }
   get origem() { return this.baseUrl ?? this.instanceUrl; }
 
   async start() {
-    const { chromium } = loadPlaywright(this.cwd);
-    this.browser = await chromium.launch({ headless: this.headless });
+    if (!NAVEGADORES.includes(this.navegador)) throw new EngineErro(`navegador inválido: ${this.navegador} (use ${NAVEGADORES.join(', ')})`, 'navegador_invalido');
+    try { this.browser = this.lancador ? await this.lancador(this.navegador) : await loadPlaywright(this.cwd)[this.navegador].launch({ headless: this.headless }); }
+    catch (e) { if (e.codigo) throw e; throw new EngineErro(`${this.navegador} não abriu: ${String(e.message).split('\n')[0].slice(0, 140)}. Corrija: npx playwright install ${this.navegador}${process.platform === 'linux' ? ` && npx playwright install-deps ${this.navegador}` : ''}`, 'navegador_indisponivel'); }
     if (this.baseUrl && process.env.SFT_ALLOW_LOCAL === '1') { this.context = await this.browser.newContext(); this.page = await this.context.newPage(); this.via = 'local'; }
     else { const r = await entrarNaOrg({ browser: this.browser, instanceUrl: this.instanceUrl, sfOpen: this.sfOpen, cwd: this.cwd, permitirJanela: this.permitirJanela, headless: this.headless }); Object.assign(this, { context: r.context, page: r.page, via: r.via }); }
     this.page.on('console', (m) => { if (m.type() === 'error') this.buf?.console.push(m.text()); });
@@ -41,7 +43,7 @@ export class Engine {
     this.page.on('response', (r) => { if (r.status() >= 500) this.buf?.respostas.push({ status: r.status(), url: r.url() }); });
     this.page.on('dialog', async (d) => { this.buf?.notificacoes.push(`${d.type()}: ${d.message()}`); await d.accept().catch(() => {}); });
     ensureDir(join(this.runDir, 'evidence'));
-    return { via: this.via };
+    return { via: this.via, navegador: this.navegador };
   }
   setMassa(m) { this.massa = m || {}; }
 
@@ -136,7 +138,7 @@ export class Engine {
     const id = this.caso.id; const dir = join(this.runDir, 'evidence');
     const png = join(dir, `${id}.png`); await this.page.screenshot({ path: png }).catch(() => {});
     const o = await this.observe().catch(() => null); const aria = join(dir, `${id}.aria.txt`); if (o) writeFileSync(aria, `${o.url}\n${o.aria}\n--- texto ---\n${o.texto.slice(0, 4000)}\n`);
-    const r = { caso: id, passos: this.caso.passos, achados: this.caso.achados, spinner_ms: this.spinnerMs, console_erros: this.buf.console.length, evidencias: { png: existsSync(png) ? png : null, aria: o ? aria : null }, duracao_ms: Date.now() - this.caso.inicio, url_final: this.page.url() };
+    const r = { caso: id, navegador: this.navegador, passos: this.caso.passos, achados: this.caso.achados, spinner_ms: this.spinnerMs, console_erros: this.buf.console.length, evidencias: { png: existsSync(png) ? png : null, aria: o ? aria : null }, duracao_ms: Date.now() - this.caso.inicio, url_final: this.page.url() };
     writeFileSync(join(dir, `${id}.trace.json`), JSON.stringify(r, null, 2)); this.caso = null; return r;
   }
   async close() { await this.browser?.close().catch(() => {}); }

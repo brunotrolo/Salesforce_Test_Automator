@@ -31,7 +31,7 @@ Instale no mesmo projeto do Designer e do Developer: os três compartilham `spec
 | `sf-qa-case-quality-review` | Revisa a qualidade dos casos: esperado observável, passos sem ambiguidade, nada inventado. |
 
 ## Pré-requisitos
-- **Node.js ≥ 20** e **Playwright** (`npm install playwright && npx playwright install chromium`).
+- **Node.js ≥ 20** e **Playwright** (`npm install playwright && npx playwright install chromium`; `firefox webkit` só para a comparação entre navegadores).
 - **Salesforce CLI (`sf`) v2** com uma **sandbox ou scratch** autenticada. Produção é recusada.
 - O projeto com o **Designer e o Developer** instalados e uma capacidade já **construída e implantada** (`specs/<domínio>/<NNN>-<slug>/` com `spec.md` e `build-report.md`). Opcional: `discovery/<R>/backlog.json` da skill Discovery-to-Backlog.
 
@@ -65,6 +65,7 @@ Nenhum alias vem embutido no repositório. Sem `SF_TARGET_ORG` (ou `target-org` 
 | `/sf-test <domínio>/<NNN-slug>` | QA de ponta a ponta, sem perguntas. |
 | `/sf-test … --rapido` | Só replay + classificação + relatório (dia a dia, antes do commit). |
 | `/sf-test … --diff origin/main...HEAD` | Deriva cenários do PR/diff quando a spec está ausente ou desatualizada (opcional: título e descrição do PR em `pr.json`). |
+| `/sf-test … --browsers chromium,firefox,webkit` | Replay também em outros navegadores; divergência reproduzida vira BUG de compatibilidade. |
 | `/sf-test … --explorar` | Acrescenta testes exploratórios; achados sem oráculo ficam "a confirmar". |
 | `/sf-test-status` | Situação das execuções e o próximo passo. |
 

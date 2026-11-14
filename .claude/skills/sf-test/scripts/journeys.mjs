@@ -1,5 +1,5 @@
 // Jornadas: o que o agente aprendeu vira um roteiro DETERMINÍSTICO (sem modelo). Compila do trace, valida pela política, reproduz e conta estabilidade.
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { hashOf } from './lib/util.mjs';
 import { targetProblems } from './engine/policy.mjs';
@@ -8,10 +8,12 @@ import { knowledgeDir } from './lib/config.mjs';
 export const ESTABILIZAR_PADRAO = Number(process.env.SFT_ESTABILIZAR || 3);
 const ACOES = new Set(['ir', 'clicar', 'preencher', 'selecionar', 'marcar', 'pressionar', 'esperar']);
 export const hashDoCaso = (c) => hashOf({ passos: c.passos, esperado: c.esperado, massa: c.massa ?? [], perfil: c.perfil ?? null });
-export const pastaJornadas = (cap, cwd = process.cwd()) => join(knowledgeDir(cwd), 'journeys', cap.replace(/[^\w.-]/g, '_'));
+const seg = (s) => String(s).replace(/[^\w.-]/g, '_');
+/** Jornadas e estabilidade ficam por AMBIENTE (org): journeys/<ambiente>/<capacidade>/. A jornada de outro ambiente só serve de semente. */
+export const pastaJornadas = (cap, cwd = process.cwd(), ambiente = 'default') => join(knowledgeDir(cwd), 'journeys', seg(ambiente), seg(cap));
 
 /** Trace do motor (passos ok) → jornada. URL absoluta vira caminho relativo; o valor mantém o modelo {{ref.campo}}. */
-export function compilar(trace, caso, capacidade) {
+export function compilar(trace, caso, capacidade, ambiente = 'default') {
   const passos = [];
   for (const p of trace.passos) {
     if (!p.ok || !ACOES.has(p.acao)) continue;
@@ -23,7 +25,7 @@ export function compilar(trace, caso, capacidade) {
     const ant = passos[passos.length - 1]; if (ant && JSON.stringify(ant) === JSON.stringify(s) && s.acao !== 'clicar') continue;
     passos.push(s);
   }
-  const j = { versao: 1, capacidade, caso: caso.id, caso_hash: hashDoCaso(caso), compilada_em: new Date().toISOString(), passos, verificacoes: caso.esperado.map((e) => e.verificacao) };
+  const j = { versao: 1, capacidade, ambiente, caso: caso.id, caso_hash: hashDoCaso(caso), compilada_em: new Date().toISOString(), passos, verificacoes: caso.esperado.map((e) => e.verificacao) };
   j.hash = hashOf({ passos: j.passos, verificacoes: j.verificacoes });
   return j;
 }
@@ -40,14 +42,14 @@ export function validarJornada(j) {
   return p;
 }
 
-const arquivo = (cap, id, cwd) => join(pastaJornadas(cap, cwd), `${id}.json`);
+const arquivo = (cap, id, cwd, amb) => join(pastaJornadas(cap, cwd, amb), `${id}.json`);
 export function salvarJornada(j, cwd = process.cwd()) {
   const erros = validarJornada(j); if (erros.length) throw new Error(`jornada recusada: ${erros.join(' | ')}`);
-  mkdirSync(pastaJornadas(j.capacidade, cwd), { recursive: true }); writeFileSync(arquivo(j.capacidade, j.caso, cwd), JSON.stringify(j, null, 2)); return arquivo(j.capacidade, j.caso, cwd);
+  const amb = j.ambiente ?? 'default'; mkdirSync(pastaJornadas(j.capacidade, cwd, amb), { recursive: true }); writeFileSync(arquivo(j.capacidade, j.caso, cwd, amb), JSON.stringify(j, null, 2)); return arquivo(j.capacidade, j.caso, cwd, amb);
 }
 /** Carrega a jornada se ela ainda vale para o caso (mesmo hash); jornada de caso alterado é descartada. */
-export function carregarJornada(cap, caso, cwd = process.cwd()) {
-  const f = arquivo(cap, caso.id, cwd); if (!existsSync(f)) return { estado: 'ausente' };
+export function carregarJornada(cap, caso, cwd = process.cwd(), ambiente = 'default') {
+  const f = arquivo(cap, caso.id, cwd, ambiente); if (!existsSync(f)) return { estado: 'ausente' };
   let j; try { j = JSON.parse(readFileSync(f, 'utf8')); } catch { return { estado: 'ilegivel' }; }
   if (j.caso_hash !== hashDoCaso(caso)) return { estado: 'obsoleta', jornada: j };
   const erros = validarJornada(j); if (erros.length) return { estado: 'invalida', erros };
@@ -68,10 +70,20 @@ export async function reproduzir(engine, j) {
 }
 
 // ---- estabilidade: N execuções verdes seguidas promovem a jornada; qualquer vermelho zera
-const estadoFile = (cap, cwd) => join(pastaJornadas(cap, cwd), '_estabilidade.json');
-export function lerEstabilidade(cap, cwd = process.cwd()) { try { return JSON.parse(readFileSync(estadoFile(cap, cwd), 'utf8')); } catch { return {}; } }
-export function registrarExecucao(cap, caso, hash, verde, { cwd = process.cwd(), alvo = ESTABILIZAR_PADRAO } = {}) {
-  const all = lerEstabilidade(cap, cwd); const e = all[caso] && all[caso].hash === hash ? all[caso] : { hash, verdes_seguidos: 0, promovida: false, execucoes: 0 };
+const estadoFile = (cap, cwd, amb) => join(pastaJornadas(cap, cwd, amb), '_estabilidade.json');
+export function lerEstabilidade(cap, cwd = process.cwd(), ambiente = 'default') { try { return JSON.parse(readFileSync(estadoFile(cap, cwd, ambiente), 'utf8')); } catch { return {}; } }
+export function registrarExecucao(cap, caso, hash, verde, { cwd = process.cwd(), alvo = ESTABILIZAR_PADRAO, ambiente = 'default' } = {}) {
+  const all = lerEstabilidade(cap, cwd, ambiente); const e = all[caso] && all[caso].hash === hash ? all[caso] : { hash, verdes_seguidos: 0, promovida: false, execucoes: 0 };
   e.execucoes++; e.verdes_seguidos = verde ? e.verdes_seguidos + 1 : 0; e.promovida = e.verdes_seguidos >= alvo; e.hash = hash; all[caso] = e;
-  mkdirSync(pastaJornadas(cap, cwd), { recursive: true }); writeFileSync(estadoFile(cap, cwd), JSON.stringify(all, null, 2)); return e;
+  mkdirSync(pastaJornadas(cap, cwd, ambiente), { recursive: true }); writeFileSync(estadoFile(cap, cwd, ambiente), JSON.stringify(all, null, 2)); return e;
+}
+
+/** Jornada do MESMO caso (mesmo conteúdo) aprendida em OUTRO ambiente: serve de semente — é reproduzida aqui, e só vale se passar. */
+export function sementeDeOutroAmbiente(cap, caso, cwd = process.cwd(), ambienteAtual = 'default') {
+  const raiz = join(knowledgeDir(cwd), 'journeys'); if (!existsSync(raiz)) return null;
+  for (const amb of readdirSync(raiz)) {
+    if (amb === seg(ambienteAtual)) continue;
+    const c = carregarJornada(cap, caso, cwd, amb); if (c.estado === 'ok') return { ...c.jornada, derivada_de: amb };
+  }
+  return null;
 }
