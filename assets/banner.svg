@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="260" viewBox="0 0 960 260" role="img" aria-label="Salesforce Test Automator">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B4C8C"/>
+      <stop offset="0.55" stop-color="#032D60"/>
+      <stop offset="1" stop-color="#00132E"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00A1E0"/>
+      <stop offset="1" stop-color="#22E3C6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="260" rx="24" fill="url(#bg)"/>
+
+  <!-- tester glyph: screen with a check mark -->
+  <g transform="translate(70 62)" fill="none" stroke="url(#accent)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6" y="8" width="124" height="86" rx="12"/>
+    <path d="M44 112 H92"/>
+    <path d="M68 94 V112"/>
+    <path d="M38 52 L58 72 L98 30" stroke-width="10"/>
+  </g>
+
+  <!-- title + tagline -->
+  <text x="248" y="112" font-family="'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="40" font-weight="700" fill="#FFFFFF">Salesforce Test Automator</text>
+  <text x="250" y="150" font-family="'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="18" fill="#BCD5F0">QA de tela sem perguntas &#8212; bug s&#243; com or&#225;culo citado.</text>
+
+  <!-- pills -->
+  <g font-family="'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="15" font-weight="600">
+    <rect x="250" y="176" width="118" height="30" rx="15" fill="#04203F" stroke="#22E3C6" stroke-opacity="0.55"/>
+    <text x="309" y="196" fill="#22E3C6" text-anchor="middle">4 agentes</text>
+
+    <rect x="380" y="176" width="220" height="30" rx="15" fill="#04203F" stroke="#00A1E0" stroke-opacity="0.55"/>
+    <text x="490" y="196" fill="#7FD3F2" text-anchor="middle">Replay sem modelo</text>
+
+    <rect x="612" y="176" width="150" height="30" rx="15" fill="#04203F" stroke="#8AA9D6" stroke-opacity="0.45"/>
+    <text x="687" y="196" fill="#BCD5F0" text-anchor="middle">S&#243; sandbox</text>
+  </g>
+</svg>
