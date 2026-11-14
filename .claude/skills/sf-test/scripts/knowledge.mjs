@@ -15,7 +15,7 @@ export const impressaoTecnica = (inv, evidencia) => hashOf({ inv, ev: String(evi
 
 export const lerDecisoes = (cwd = process.cwd()) => ler(f('decisions.json', cwd), {});
 export function decidir(id, decisao, { cwd = process.cwd(), motivo = '' } = {}) {
-  if (!['bug', 'previsto'].includes(decisao)) throw new Error('decisão deve ser bug ou previsto');
+  if (!['bug', 'previsto', 'mudanca'].includes(decisao)) throw new Error('decisão deve ser bug, previsto ou mudanca');
   const d = lerDecisoes(cwd); d[id] = { decisao, motivo: String(motivo).slice(0, 200), em: new Date().toISOString() }; gravar(f('decisions.json', cwd), d); return d[id];
 }
 export const lerPrecedentes = (cwd = process.cwd()) => ler(f('precedentes.json', cwd), {});
@@ -27,5 +27,5 @@ export function registrarPrecedentes(run, itens, cwd = process.cwd()) {
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   const [cmd, id, dec, ...resto] = process.argv.slice(2);
   if (cmd === 'decidir' && id && dec) { console.log(JSON.stringify({ ok: true, [id]: decidir(id, dec, { motivo: resto.join(' ') }) })); }
-  else { console.error('Uso: knowledge.mjs decidir <id-do-achado> <bug|previsto> [motivo]'); process.exit(1); }
+  else { console.error('Uso: knowledge.mjs decidir <id-do-achado> <bug|previsto|mudanca> [motivo]'); process.exit(1); }
 }

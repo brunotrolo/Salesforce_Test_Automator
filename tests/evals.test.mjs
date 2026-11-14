@@ -97,3 +97,36 @@ test('cenário C (app correto): zero falso positivo, gate sem bug, e a 2ª execu
   assert.ok(rep.resultados.every((r) => r.via === 'replay')); assert.deepEqual(rep.pendentes.map((p) => p.caso), ['TC-006']);   // só o caso que nunca ficou verde precisa do agente
   assert.ok(rep.resultados.filter((r) => r.status === 'verde').length >= 5);
 });
+
+// ---- cenário D: a funcionalidade mudou e a especificação não acompanhou
+const PR_TXT = `# Mensagem de assunto obrigatório mais clara
+
+## O que mudou
+- A mensagem de assunto vazio agora é "Assunto obrigatório"
+
+## Plano de teste
+- Salvar sem assunto mostra "Assunto obrigatório"
+`;
+const juizMudanca = (c) => (c.pacotes_juiz ?? []).reduce((m, p) => { m[p.caso] = p.evidencias_de_mudanca?.length ? { caso: p.caso, veredito: 'MUDANCA_NAO_DOCUMENTADA', motivo: `a tela segue ${p.evidencias_de_mudanca[0].id} (PR), não o oráculo da spec` } : { caso: p.caso, veredito: 'BUG', motivo: 'a tela contradiz o oráculo citado' }; return m; }, {});
+const obs = (run) => Object.fromEntries(ler(run).map((r) => { let t = ''; try { t = readFileSync(r.evidencias.aria, 'utf8'); } catch { /* sem evidência */ } return [r.caso, t]; }));
+async function rodarD(basisD) {
+  fx.setFlags({ msg: 'Assunto obrigatório' }); const cwd = tmp(); const run = join(cwd, 'run'); mkdirSync(join(run, 'resultados'), { recursive: true });
+  const cad = { ...CADERNO, casos: CADERNO.casos.filter((c) => c.id === 'TC-002') };
+  await aprender(cwd, run, ['TC-002']); await aprender(cwd, run, ['TC-002'], '.rerun');
+  const reruns = Object.fromEntries(ler(run, true).map((r) => [r.caso, r])); const observado = obs(run);
+  let cls = classificar({ basis: basisD, caderno: cad, resultados: ler(run), reruns, observado });
+  cls = classificar({ basis: basisD, caderno: cad, resultados: ler(run), reruns, observado, juiz: juizMudanca(cls) });
+  fx.setFlags({}); return { cls, cad };
+}
+
+test('cenário D (spec desatualizada): a tela segue o PR, não a spec → MUDANCA_NAO_DOCUMENTADA, não bug; gate com pendência', async () => {
+  const { basis: bPr } = buildBasis({ spec: join(ROOT, 'specs/atendimento', CAP), discovery: join(ROOT, 'discovery/R01/backlog.json'), prText: PR_TXT }, ROOT);
+  const { cls, cad } = await rodarD(bPr); const c = cls.casos[0];
+  assert.equal(c.veredito, 'MUDANCA_NAO_DOCUMENTADA', JSON.stringify(c)); assert.equal(c.evidencia_mudanca[0].origem, 'pr'); assert.match(c.spec_a_atualizar.fonte.arquivo, /spec\.md$/);
+  const rel = montarRelatorio({ run: 'D', classificacao: cls, caderno: cad, basis: bPr }); assert.equal(rel.gate, 'APROVADO_COM_PENDENCIAS'); assert.equal(rel.bugs.length, 0); assert.match(rel.md, /Mudança não documentada/);
+});
+
+test('cenário D2 (mesma tela, sem PR nem outra evidência): continua sendo BUG — a mudança só é "não documentada" com evidência', async () => {
+  const { cls, cad } = await rodarD(basis); assert.equal(cls.casos[0].veredito, 'BUG');
+  assert.equal(montarRelatorio({ run: 'D2', classificacao: cls, caderno: cad, basis }).gate, 'REPROVADO');
+});

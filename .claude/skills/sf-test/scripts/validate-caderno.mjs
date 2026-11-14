@@ -32,7 +32,7 @@ export function checkCaderno(cad, basis) {
     }
     if (c.tipo === 'limite' && !c.passos.some((p) => /\d/.test(p.acao))) warnings.push(`${w}: caso de limite sem valor numérico nos passos`);
   }
-  const exigidos = basis.oracles.filter((o) => (o.classe === 'aceite' || o.classe === 'regra') && !o.incerto);
+  const exigidos = basis.oracles.filter((o) => (o.classe === 'aceite' || o.classe === 'regra' || (o.classe === 'pr' && !basis.base_forte)) && !o.incerto);
   const faltam = exigidos.filter((o) => !cobertos.has(o.id));
   for (const o of faltam) errors.push(`cobertura: ${o.id} (${o.classe}) sem caso: "${o.texto.slice(0, 70)}"`);
   const validacoes = basis.oracles.filter((o) => o.classe === 'validacao' && !cobertos.has(o.id));

@@ -64,6 +64,7 @@ Nenhum alias vem embutido no repositório. Sem `SF_TARGET_ORG` (ou `target-org` 
 |---|---|
 | `/sf-test <domínio>/<NNN-slug>` | QA de ponta a ponta, sem perguntas. |
 | `/sf-test … --rapido` | Só replay + classificação + relatório (dia a dia, antes do commit). |
+| `/sf-test … --diff origin/main...HEAD` | Deriva cenários do PR/diff quando a spec está ausente ou desatualizada (opcional: título e descrição do PR em `pr.json`). |
 | `/sf-test … --explorar` | Acrescenta testes exploratórios; achados sem oráculo ficam "a confirmar". |
 | `/sf-test-status` | Situação das execuções e o próximo passo. |
 
@@ -73,12 +74,13 @@ Nenhum alias vem embutido no repositório. Sem `SF_TARGET_ORG` (ou `target-org` 
 |---|---|
 | **PASSOU** | as asserções do caso foram verdadeiras |
 | **BUG** | contradiz um oráculo forte, **reproduziu 2 de 2** e o juiz confirmou; ou violou uma invariante (erro Apex/Flow não tratado, HTTP 5xx, texto cru, erro de console, tela travada) |
+| **MUDANCA_NAO_DOCUMENTADA** | contradiz a spec, mas há evidência mais recente (PR, commit, metadados) de que a mudança foi intencional: **a spec ficou para trás**, não é bug; vira pendência "atualizar a spec" |
 | **PREVISTO** | já documentado como gap no `build-report` ou decisão registrada pelo dev |
 | **A_CONFIRMAR** | sem oráculo ou em dúvida: traz a **pergunta de negócio**; nunca conta como bug nem sucesso |
 | **BLOQUEADO** | login, massa, permissão ou política (causa fora do produto) |
 | **INSTAVEL** | a reexecução deu outro resultado |
 
-Ordem dos oráculos: critério de aceite/regra de negócio › decisão do plan/build-report › gap conhecido › invariante técnica. Nada vira "previsto" sozinho.
+Ordem dos oráculos: critério de aceite/regra de negócio › decisão do plan/build-report e intenção do PR › gap conhecido › invariante técnica. Nada vira "previsto" sozinho. **Sem especificação atualizada**, `--pr`/`--diff` derivam os cenários do PR (descrição, plano de teste, commits) e os arquivos alterados mostram o escopo.
 
 ## Segurança (por código)
 - `preflight` exige `IsSandbox=true` e **recusa produção** (na dúvida, recusa).

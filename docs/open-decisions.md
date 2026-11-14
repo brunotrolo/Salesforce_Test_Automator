@@ -11,4 +11,5 @@
 | 7 | Anotar o resultado no `BACKLOG.md` do Designer e abrir bug no Jira | Não implementado; o relatório é o insumo (`test-report.md` na pasta da spec) |
 | 8 | Permissões de ferramenta em sessões `claude -p` (workspace não confiável ignora `.claude/settings.json`) | Rodar interativamente ou confiar no workspace |
 | 9 | Padrões de erro não tratado (INV-001) e lista de ruído de console (INV-004) são heurísticas | Ajustar `engine/detectors.mjs` com exemplos reais |
+| 11 | **Cenários do PR/diff e mudança não documentada**: a leitura do PR depende de a sessão ter uma ferramenta de GitHub (o `--diff` só usa o `git` local); a evidência de mudança é literal (mensagem de regra de validação ou trecho citado no PR/commit), então mudanças descritas sem aspas ou só em prosa vão para `A_CONFIRMAR`. Nada disto foi exercitado com um PR real | Ajustar a extração com PRs reais da equipe |
 | 10 | Nomes de abas/botões dependem do idioma do usuário da org | Fixar o idioma do usuário de teste |

@@ -14,27 +14,28 @@ export function montarRelatorio({ run, classificacao, caderno, basis, massaLog =
   for (const c of casos.filter((x) => x.veredito === 'BUG')) bugs.push({ tipo: 'negocio', caso: c.caso, titulo: c.titulo, severidade: c.severidade ?? 'media', motivo: c.motivo, oraculos: c.oraculos, evidencias: c.evidencias });
   for (const t of classificacao.tecnicos.filter((x) => x.veredito === 'BUG')) bugs.push({ tipo: 'tecnico', inv: t.inv, titulo: `Defeito técnico ${t.inv}: ${cur(t.evidencia, 70)}`, severidade: t.severidade, motivo: t.motivo, casos: t.casos });
   bugs.forEach((b, i) => { b.id = `BUG-${String(i + 1).padStart(3, '0')}`; });
-  const aConf = casos.filter((c) => c.veredito === 'A_CONFIRMAR'); const bloq = casos.filter((c) => c.veredito === 'BLOQUEADO'); const prev = casos.filter((c) => c.veredito === 'PREVISTO'); const inst = casos.filter((c) => c.veredito === 'INSTAVEL'); const ok = casos.filter((c) => c.veredito === 'PASSOU');
+  const aConf = casos.filter((c) => c.veredito === 'A_CONFIRMAR'); const bloq = casos.filter((c) => c.veredito === 'BLOQUEADO'); const mud = casos.filter((c) => c.veredito === 'MUDANCA_NAO_DOCUMENTADA'); const prev = casos.filter((c) => c.veredito === 'PREVISTO'); const inst = casos.filter((c) => c.veredito === 'INSTAVEL'); const ok = casos.filter((c) => c.veredito === 'PASSOU');
   const orc = new Map((basis?.oracles ?? []).map((o) => [o.id, o]));
   const exigidos = (basis?.oracles ?? []).filter((o) => (o.classe === 'aceite' || o.classe === 'regra') && !o.incerto);
   const resolvido = (id) => casos.some((c) => (c.oraculos || []).includes(id) && ['PASSOU', 'PREVISTO'].includes(c.veredito));
   const cobertos = exigidos.filter((o) => resolvido(o.id)).length;
   const p1Bloq = bloq.filter((c) => c.prioridade === 'P1');
-  const gate = bugs.length ? 'REPROVADO' : (p1Bloq.length || !casos.length) ? 'NAO_CONCLUIDO' : aConf.length ? 'APROVADO_COM_PENDENCIAS' : 'APROVADO';
+  const gate = bugs.length ? 'REPROVADO' : (p1Bloq.length || !casos.length) ? 'NAO_CONCLUIDO' : (aConf.length || mud.length) ? 'APROVADO_COM_PENDENCIAS' : 'APROVADO';
   const icone = { REPROVADO: '❌', NAO_CONCLUIDO: '⛔', APROVADO_COM_PENDENCIAS: '⚠️', APROVADO: '✅' }[gate];
   const L = [`# QA de tela — ${caderno?.capacidade ?? '?'} · ${data} · execução ${run}`, '',
-    `**${icone} ${gate.replace(/_/g, ' ')}** — ${ok.length} passaram · ${bugs.length} bug(s) · ${aConf.length} a confirmar · ${prev.length} previstos · ${bloq.length} bloqueados${inst.length ? ` · ${inst.length} instáveis` : ''} (de ${casos.length} casos)`,
+    `**${icone} ${gate.replace(/_/g, ' ')}** — ${ok.length} passaram · ${bugs.length} bug(s) · ${mud.length ? `${mud.length} mudança(s) não documentada(s) · ` : ''}${aConf.length} a confirmar · ${prev.length} previstos · ${bloq.length} bloqueados${inst.length ? ` · ${inst.length} instáveis` : ''} (de ${casos.length} casos)`,
     `Critérios de aceite/regras resolvidos: ${cobertos}/${exigidos.length}${exigidos.length ? ` (${Math.round((100 * cobertos) / exigidos.length)}%)` : ''}${basis && !basis.base_forte ? ' — base fraca: poucos critérios com fonte' : ''}`, ''];
   if (bugs.length) { L.push('## ❌ Bugs', '', '| ID | Sev. | O quê | Fonte da expectativa |', '|---|---|---|---|'); for (const b of bugs) { const o = (b.oraculos || []).map((id) => orc.get(id)).find((x) => x && x.autoridade <= 2); L.push(`| ${b.id} | ${b.severidade} | ${cur(b.titulo, 70)} | ${o?.fonte ? `${o.fonte.arquivo}:${o.fonte.linha_de}` : b.tipo === 'tecnico' ? `invariante ${b.inv}` : '—'} |`); } L.push('', `Detalhe e passos para reproduzir em \`bugs/BUG-nnn.md\`.`, ''); }
+  if (mud.length) { L.push('## 📝 Mudança não documentada (a spec ficou para trás — não é bug)', ''); for (const c of mud.slice(0, 6)) L.push(`- **${c.caso}** — a tela segue ${c.evidencia_mudanca?.[0]?.id ?? 'evidência mais recente'} (${c.evidencia_mudanca?.[0]?.origem ?? '?'}), não a spec ${c.spec_a_atualizar?.fonte ? `\`${c.spec_a_atualizar.fonte.arquivo}:${c.spec_a_atualizar.fonte.linha_de}\`` : ''} → atualizar a especificação`); L.push(''); }
   if (aConf.length) { L.push('## ⚠️ A confirmar (não é bug nem sucesso)', ''); for (const c of aConf.slice(0, 8)) L.push(`- **${c.caso}** — ${cur(c.pergunta ?? c.motivo, 110)}`); if (aConf.length > 8) L.push(`- … e mais ${aConf.length - 8} em resultado.json`); L.push(''); }
   if (bloq.length) { L.push('## ⛔ Bloqueados (causa fora do produto)', ''); for (const c of bloq.slice(0, 6)) L.push(`- **${c.caso}** — ${cur(c.motivo, 100)}`); L.push(''); }
   if (prev.length) L.push(`ℹ️ Previstos (diferença já documentada): ${prev.map((c) => c.caso).join(', ')}`);
   if (inst.length) L.push(`🔁 Instáveis: ${inst.map((c) => c.caso).join(', ')}`);
   if (classificacao.precisa_rerun?.length) L.push(`↻ Falta reexecutar para confirmar: ${classificacao.precisa_rerun.join(', ')}`);
-  const prox = bugs.length ? 'Corrigir os bugs e rodar `/sf-test` de novo (as jornadas já aprendidas rodam sem modelo).' : aConf.length ? 'Responder as perguntas e registrar: `node .claude/skills/sf-test/scripts/knowledge.mjs decidir <id> bug|previsto`.' : p1Bloq.length ? 'Resolver os bloqueios (login/massa) e reexecutar.' : 'Nada a fazer.';
+  const prox = bugs.length ? 'Corrigir os bugs e rodar `/sf-test` de novo (as jornadas já aprendidas rodam sem modelo).' : mud.length && !aConf.length ? 'Atualizar a especificação das mudanças listadas (ou, se foi engano, tratá-las como bug: `knowledge.mjs decidir <id> bug`).' : aConf.length ? 'Responder as perguntas e registrar: `node .claude/skills/sf-test/scripts/knowledge.mjs decidir <id> bug|previsto`.' : p1Bloq.length ? 'Resolver os bloqueios (login/massa) e reexecutar.' : 'Nada a fazer.';
   L.push('', `**Próximo passo:** ${prox}`);
   const md = L.join('\n') + '\n';
-  const json = { run, data, capacidade: caderno?.capacidade, gate, resumo: classificacao.resumo, bugs, a_confirmar: aConf, bloqueados: bloq, previstos: prev, instaveis: inst, tecnicos: classificacao.tecnicos, cobertura: { resolvidos: cobertos, exigidos: exigidos.length }, massa: massaLog ? { criados: massaLog.criados?.length ?? 0, bloqueados: massaLog.bloqueados ?? [] } : null, org: preflight?.org?.host ?? null };
+  const json = { run, data, capacidade: caderno?.capacidade, gate, resumo: classificacao.resumo, bugs, a_confirmar: aConf, mudancas_nao_documentadas: mud, bloqueados: bloq, previstos: prev, instaveis: inst, tecnicos: classificacao.tecnicos, cobertura: { resolvidos: cobertos, exigidos: exigidos.length }, massa: massaLog ? { criados: massaLog.criados?.length ?? 0, bloqueados: massaLog.bloqueados ?? [] } : null, org: preflight?.org?.host ?? null };
   return { md, json, bugs, gate };
 }
 

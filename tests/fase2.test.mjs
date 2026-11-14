@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmp } from './helpers.mjs';
@@ -131,4 +131,51 @@ test('massa: valor inseguro (aspas) é recusado e vira bloqueio, sem chamar o CL
   const r = prepararMassa({ itens: [{ id: 'MD-001', caso: 'TC-001', ref: 'c', entidade: 'Account', atributos: { Name: "x' OR '1'='1" }, quantidade: 1 }] }, { sf, runId: 'r3', org: 'orgx' });
   assert.equal(r.log.criados.length, 0); assert.match(r.log.bloqueados[0].motivo, /inseguro/);
   assert.ok(!existsSync(log) || !/create/.test(readFileSync(log, 'utf8')));
+});
+
+// ---- Cenários derivados do PR / diff
+import { execFileSync } from 'node:child_process';
+const { lerDiff, textoDoPr } = await import(`../${S}/build-basis.mjs`);
+const PR = `# Mensagem de assunto obrigatório mais clara
+
+## O que mudou
+- A mensagem de assunto vazio agora é "Assunto obrigatório"
+- [x] Caso salvo mostra o número do caso
+
+## Plano de teste
+- Salvar sem assunto mostra "Assunto obrigatório"
+- **Dado** um caso sem assunto, **quando** o atendente salva, **então** a tela mostra "Assunto obrigatório"
+`;
+
+test('PR: sem especificação, a intenção do PR (descrição, plano de teste, cenário e commits) vira oráculo citável', () => {
+  const { basis, achou } = buildBasis({ prText: PR, lerDiff: () => ({ arquivos: [], commits: ['fix: mensagem de assunto', 'chore: bump', 'feat: número do caso no topo'] }), diff: 'a...b' }, ROOT);
+  assert.equal(achou, true); assert.equal(basis.base_forte, false); assert.equal(basis.base_pr, true); assert.match(basis.intencao, /obrigatório mais clara/);
+  const pr = basis.oracles.filter((o) => o.classe === 'pr'); assert.ok(pr.length >= 4); assert.ok(pr.every((o) => o.autoridade === 2 && o.fonte.arquivo === 'pr_intent.md'));
+  assert.ok(pr.some((o) => o.subtipo === 'cenario')); assert.ok(basis.oracles.filter((o) => o.classe === 'commit').length === 2);   // chore: descartado
+  assert.ok(basis.avisos.some((a) => /INTENÇÃO declarada no PR/.test(a)));
+  assert.deepEqual(verifyOracles(basis, ROOT), []);                                         // citações do arquivo virtual conferem
+  basis.oracles.find((o) => o.classe === 'pr').fonte.citacao = 'texto que não está no PR'; assert.ok(verifyOracles(basis, ROOT).length > 0);
+});
+
+test('PR: com spec, o diff marca o que mudou e avisa quando a spec não foi alterada', () => {
+  const fake = () => ({ arquivos: [{ status: 'M', caminho: 'force-app/domains/atendimento/main/default/objects/Case/validationRules/Assunto_Obrigatorio.validationRule-meta.xml', tipo: 'validationRule' }], commits: [] });
+  const { basis } = buildBasis({ ...opt, diff: 'main...HEAD', lerDiff: fake }, ROOT);
+  assert.ok(basis.oracles.find((o) => o.classe === 'validacao').alterado_no_diff); assert.equal(basis.spec_atualizada_no_diff, false);
+  assert.ok(basis.avisos.some((a) => /diff não altera a especificação/.test(a))); assert.equal(basis.mudancas.length, 1);
+  assert.ok(buildBasis({ ...opt, diff: 'x', lerDiff: () => ({ erro: 'git diff falhou', arquivos: [], commits: [] }) }, ROOT).basis.avisos.some((a) => /Diff indisponível/.test(a)));
+});
+
+test('git: lerDiff lê arquivos alterados e commits (sem ruído), recusa intervalo suspeito e falha sem repositório', () => {
+  const repo = tmp('git-'); const g = (...a) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@e.x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@e.x' } });
+  g('init', '-q'); writeFileSync(join(repo, 'a.txt'), '1'); g('add', '.'); g('commit', '-qm', 'chore: inicio');
+  mkdirSync(join(repo, 'force-app/x/objects/Case/validationRules'), { recursive: true }); mkdirSync(join(repo, 'specs/d/001-x'), { recursive: true });
+  writeFileSync(join(repo, 'force-app/x/objects/Case/validationRules/R.validationRule-meta.xml'), '<a/>'); writeFileSync(join(repo, 'specs/d/001-x/spec.md'), '# s'); g('add', '.'); g('commit', '-qm', 'feat: nova regra de validação');
+  const d = lerDiff('HEAD~1..HEAD', repo); assert.equal(d.erro, undefined); assert.deepEqual(d.arquivos.map((a) => a.tipo).sort(), ['spec', 'validationRule']); assert.deepEqual(d.commits, ['feat: nova regra de validação']);
+  assert.ok(lerDiff('HEAD; rm -rf /', repo).erro); assert.ok(lerDiff('HEAD~1..HEAD', tmp('semgit-')).erro);
+});
+
+test('caderno: sem spec forte, os oráculos do PR passam a exigir cobertura', () => {
+  const { basis } = buildBasis({ prText: PR }, ROOT);
+  const r = checkCaderno({ schema: '1.0', capacidade: 'x', casos: [{ id: 'TC-001', titulo: 'qualquer coisa', tipo: 'exploratorio', prioridade: 'P3', passos: [{ n: 1, acao: 'abrir' }], esperado: [{ texto: 'algo', verificacao: { tipo: 'semantica' } }] }] }, basis);
+  assert.ok(r.errors.some((e) => /cobertura: O-\d+ \(pr\)/.test(e)));
 });

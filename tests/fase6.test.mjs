@@ -54,7 +54,7 @@ test('decisão do dev é a única forma de virar previsto/bug por conta própria
     K.decidir(imp, 'previsto', { motivo: 'limitação aceita' });
     let out = classificar({ basis, caderno, resultados: r, decisoes: K.lerDecisoes() }); assert.equal(v(out, 'TC-030').veredito, 'PREVISTO'); assert.match(v(out, 'TC-030').motivo, /decisão registrada/);
     K.decidir(imp, 'bug'); out = classificar({ basis, caderno, resultados: r, decisoes: K.lerDecisoes() }); assert.equal(v(out, 'TC-030').veredito, 'BUG');
-    assert.throws(() => K.decidir(imp, 'talvez'), /bug ou previsto/);
+    assert.throws(() => K.decidir(imp, 'talvez'), /bug, previsto ou mudanca/);
     K.registrarPrecedentes('r1', [{ impressao: imp, veredito: 'BUG' }]); assert.equal(K.lerPrecedentes()[imp].vezes, 1);
   } finally { delete process.env.SFT_DIR; }
 });
@@ -92,4 +92,46 @@ test('gate: aprovado, aprovado com pendências, não concluído (P1 bloqueado ou
   assert.equal(g([P('a', 'PASSOU'), P('b', 'A_CONFIRMAR', 'P2')]), 'APROVADO_COM_PENDENCIAS');
   assert.equal(g([P('a', 'PASSOU'), P('b', 'BLOQUEADO')]), 'NAO_CONCLUIDO'); assert.equal(g([]), 'NAO_CONCLUIDO');
   assert.equal(g([P('a', 'PASSOU')], [{ inv: 'INV-004', evidencia: 'x', veredito: 'BUG', severidade: 'media', casos: ['a'], motivo: 'm' }]), 'REPROVADO');
+});
+
+// ---- mudança não documentada
+const { candidatosMudanca } = await import(`../${S}/classify.mjs`);
+const basisM = { oracles: [O('O-001', 'aceite', 1, { origem: 'spec', texto: 'A tela mostra a mensagem "Informe o assunto"' }),
+  O('O-020', 'pr', 2, { origem: 'pr', texto: 'A mensagem de assunto vazio agora é "Assunto obrigatório"' }),
+  O('O-021', 'validacao', 2, { origem: 'metadados', texto: 'Regra de validação X', mensagem: 'Campo descrição é exigido' }),
+  O('O-022', 'commit', 3, { origem: 'commit', texto: 'ajusta o cálculo do limite' }), O('O-023', 'gap-conhecido', 3, { origem: 'build-report', texto: 'Assunto obrigatório não tratado' })], questions: [] };
+const RM = (extra) => R('TC-050', 'vermelho', { oraculos: ['O-001'], ...extra });
+
+test('candidatos de mudança: citação literal, mensagem da regra de validação; ignora spec, gap e o que não aparece na tela', () => {
+  const c1 = candidatosMudanca(basisM, 'Assunto obrigatório', ['O-001']); assert.deepEqual(c1.map((x) => x.id), ['O-020']);
+  assert.equal(candidatosMudanca(basisM, 'Campo descrição é exigido para prioridade Alta', ['O-001'])[0].id, 'O-021');
+  assert.deepEqual(candidatosMudanca({ oracles: [O('O-030', 'campo', 2, { origem: 'metadados', texto: 'Campo "Prioridade" é obrigatório' }), O('O-031', 'pr', 2, { origem: 'pr', texto: 'O campo "Prioridade" passa a ser a primeira coluna' })] }, 'Prioridade Assunto Salvar', []), []);   // nome de campo não é evidência
+  assert.deepEqual(candidatosMudanca(basisM, 'Informe o assunto', ['O-001']), []);
+  assert.deepEqual(candidatosMudanca(basisM, '', []), []);
+});
+
+test('mudança não documentada: só com reprodução + evidência recente + juiz; sem evidência o juiz não consegue alegar', () => {
+  const r = [RM()]; const rr = { 'TC-050': RM() }; const obs = { 'TC-050': 'Assunto obrigatório' };
+  let out = classificar({ basis: basisM, caderno, resultados: r, reruns: rr, observado: obs });
+  assert.equal(v(out, 'TC-050').veredito, 'A_CONFIRMAR'); assert.match(v(out, 'TC-050').motivo, /possível mudança não documentada \(O-020\)/);
+  assert.equal(out.pacotes_juiz[0].evidencias_de_mudanca[0].id, 'O-020');
+  const j = { 'TC-050': { caso: 'TC-050', veredito: 'MUDANCA_NAO_DOCUMENTADA', motivo: 'a tela segue o PR (O-020), não a spec (O-001)' } };
+  out = classificar({ basis: basisM, caderno, resultados: r, reruns: rr, observado: obs, juiz: j });
+  const c = v(out, 'TC-050'); assert.equal(c.veredito, 'MUDANCA_NAO_DOCUMENTADA'); assert.equal(c.evidencia_mudanca[0].id, 'O-020'); assert.equal(c.spec_a_atualizar.oraculo, 'O-001'); assert.equal(out.resumo.mudanca_nao_documentada, 1);
+  out = classificar({ basis: basisM, caderno, resultados: r, reruns: rr, observado: { 'TC-050': 'qualquer outra coisa' }, juiz: j });
+  assert.equal(v(out, 'TC-050').veredito, 'A_CONFIRMAR'); assert.match(v(out, 'TC-050').motivo, /não há evidência mais recente/);
+  out = classificar({ basis: basisM, caderno, resultados: r, reruns: rr, observado: { 'TC-050': 'qualquer outra coisa' }, juiz: { 'TC-050': { caso: 'TC-050', veredito: 'BUG', motivo: 'contradiz O-001' } } });
+  assert.equal(v(out, 'TC-050').veredito, 'BUG');                                               // sem evidência de mudança segue sendo bug
+});
+
+test('decisão do dev "mudanca" e o relatório: gate com pendência, seção própria e próximo passo', () => {
+  const cwd = tmp(); process.env.SFT_DIR = cwd;
+  try {
+    const base = classificar({ basis: basisM, caderno, resultados: [RM()] }); const imp = v(base, 'TC-050').impressao;
+    K.decidir(imp, 'mudanca'); const out = classificar({ basis: basisM, caderno, resultados: [RM()], decisoes: K.lerDecisoes() });
+    assert.equal(v(out, 'TC-050').veredito, 'MUDANCA_NAO_DOCUMENTADA');
+    const casos = [{ caso: 'TC-050', titulo: 't', prioridade: 'P2', veredito: 'MUDANCA_NAO_DOCUMENTADA', oraculos: ['O-001'], evidencia_mudanca: [{ id: 'O-020', origem: 'pr' }], spec_a_atualizar: { oraculo: 'O-001', fonte: { arquivo: 'spec.md', linha_de: 7 } } }, { caso: 'TC-051', veredito: 'PASSOU', prioridade: 'P1', oraculos: [] }];
+    const rel = montarRelatorio({ run: 'm', classificacao: cls({ casos, resumo: { total: 2 } }), caderno: caderno2, basis: basis2 });
+    assert.equal(rel.gate, 'APROVADO_COM_PENDENCIAS'); assert.match(rel.md, /Mudança não documentada/); assert.match(rel.md, /O-020/); assert.match(rel.md, /spec\.md:7/); assert.match(rel.md, /Atualizar a especificação/); assert.equal(rel.json.mudancas_nao_documentadas.length, 1);
+  } finally { delete process.env.SFT_DIR; }
 });

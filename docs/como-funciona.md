@@ -9,6 +9,7 @@ Todo veredito nasce de um **oráculo** com citação verificável (`arquivo:linh
 |---|---|
 | **PASSOU** | as asserções do caso foram verdadeiras |
 | **BUG** | contradiz um oráculo forte, **reproduziu 2 de 2** e o **juiz independente** confirmou — ou violou uma invariante (erro Apex/Flow não tratado, HTTP 5xx, texto cru como `[object Object]`, erro de console, tela travada) |
+| **MUDANCA_NAO_DOCUMENTADA** | contradiz a spec, mas há evidência mais recente (PR, commit, metadados) de que a mudança foi intencional: a spec ficou para trás, não é bug |
 | **PREVISTO** | a diferença já está documentada (gap do build-report) ou o dev registrou a decisão |
 | **A_CONFIRMAR** | sem oráculo, oráculo incerto ou juiz em dúvida: o relatório traz a **pergunta de negócio**. Nunca conta como bug nem como sucesso |
 | **BLOQUEADO** | login, massa, permissão ou política: causa fora do produto |
@@ -37,6 +38,7 @@ Tudo em `.sf-test/runs/<execução>/` (fora do git). Detalhe de cada passo: `.cl
 | Critérios de aceite (Dado/Quando/Então) e regras de negócio | `specs/<dom>/<NNN>/spec.md`, `discovery/<R>/backlog.json` | oráculo de **maior autoridade** |
 | `[NEEDS CLARIFICATION: negócio]` | `spec.md`, `backlog.json` | pergunta aberta → `A_CONFIRMAR` |
 | Decisões e abordagem | `plan.md`, `build-report.md` (Decisions Made) | decisão |
+| Intenção do PR e commits | `--pr pr.json`, `--diff <intervalo>` | cenários quando a spec está ausente ou desatualizada (autoridade 2 e 3) |
 | Regras de validação, campos obrigatórios, picklists | `force-app/**` do domínio | casos negativos e de limite |
 | Gaps e limitações conhecidas | `build-report.md` (Gaps Found), `tasks.md` (`[GATE-n]`) | diferença nessa área é `PREVISTO` |
 | Invariantes técnicas | embutidas (INV-001 a INV-005) | erro Apex/Flow, HTTP 5xx, texto cru, erro de console, tela travada |

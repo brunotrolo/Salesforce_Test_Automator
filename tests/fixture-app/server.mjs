@@ -18,7 +18,7 @@ customElements.define('qa-case-form', class extends HTMLElement {
     r.innerHTML = '<label>Assunto<input id="assunto"></label><label>Descrição<textarea id="desc"></textarea></label><label>Prioridade<select id="prio"><option>Baixa</option><option>Média</option><option>Alta</option></select></label><button id="salvar" type="button">' + (Q.get('drift') ? 'Gravar' : 'Salvar') + '</button><div id="erro" role="alert"></div>';
     r.getElementById('salvar').addEventListener('click', async () => {
       const assunto = r.getElementById('assunto').value, desc = r.getElementById('desc').value, prio = r.getElementById('prio').value; const erro = r.getElementById('erro'); erro.textContent = '';
-      if (!assunto.trim()) { erro.textContent = 'Informe o assunto'; return; }
+      if (!assunto.trim()) { erro.textContent = Q.get('msg') || 'Informe o assunto'; return; }
       if (assunto.length > 255 && bug !== 'limite') { erro.textContent = 'Assunto muito longo (máx. 255)'; return; }
       if (prio === 'Alta' && !desc.trim() && bug !== 'alta') { erro.textContent = 'Descrição obrigatória para prioridade Alta'; return; }
       contador++; const num = String(contador).padStart(5, '0');
