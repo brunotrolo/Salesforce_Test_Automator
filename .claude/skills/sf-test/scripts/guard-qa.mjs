@@ -6,7 +6,7 @@ import { qaDir } from './lib/config.mjs';
 import { sfVerdict, sfSegments, createdIdsFrom, latestRunDir } from './engine/policy.mjs';
 
 export function decide(toolName, input = {}, cwd = process.cwd()) {
-  const AUTH = /(^|[\\/])\.sf-test[\\/]auth([\\/]|$)/;
+  const AUTH = /(^|[\\/"'\s])\.sf-test[\\/]auth([\\/"']|$)/; // também caminho relativo (começa logo após a aspa do JSON)
   const text = JSON.stringify(input);
   if (['Read', 'Grep', 'Glob', 'Edit', 'Write', 'NotebookEdit'].includes(toolName) && AUTH.test(text.replace(/\\\\/g, '/').replace(/\\/g, '/')))
     return { allow: false, reason: 'A sessão do navegador (.sf-test/auth) contém credenciais: o agente não a lê nem edita.' };

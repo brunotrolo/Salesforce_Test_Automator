@@ -41,6 +41,8 @@ agentes:
 regras:
   - .claude/rules/qa-governance.md
   - .claude/rules/sandbox-only.md
+politicas:
+  - sf-test
 avaliacoes: evals/
 runtime:
   dir: .claude/skills/sf-test/scripts
