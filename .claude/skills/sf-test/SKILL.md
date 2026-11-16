@@ -6,6 +6,9 @@ argument-hint: <dominio/NNN-slug> [--rapido] [--explorar]
 arguments: [capacidade]
 ---
 
+> **Primeiro passo (Odin):** rode `odin ensure sf-test` e só continue se a resposta tiver `"ok": true`.
+
+
 # sf-test — QA de tela autônomo
 
 Roda na **conversa principal** (subagente não chama subagente nem pergunta ao usuário). Executa de ponta a ponta **sem perguntar nada**: o que falta vira `BLOQUEADO` com a correção exata; o que não dá para classificar vira `A_CONFIRMAR`. Leia as regras em `.claude/rules/qa-governance.md` e `sandbox-only.md`.
