@@ -5,17 +5,26 @@ dominio: salesforce
 dono: mantenedor
 descricao: QA de tela autônomo na sandbox. Lê o backlog, a spec e o relatório de construção, executa os casos no navegador e separa bug, comportamento previsto e ponto a confirmar.
 intencoes:
-  - testar a capacidade na sandbox
-  - rodar o QA de tela da entrega
-  - validar a jornada no navegador antes de homologar
-  - executar os casos de teste da história
-  - testar a tela de ponta a ponta com Playwright
-  - verificar se a entrega atende os critérios de aceite
-  - fazer o teste funcional da jornada de proposta
-  - texto: criar a classe de teste Apex
-    negativa: true
-  - texto: aumentar a cobertura de código
-    negativa: true
+  - "testar a capacidade na sandbox"
+  - "rodar o QA de tela da entrega"
+  - "validar a jornada no navegador antes de homologar"
+  - "executar os casos de teste da história"
+  - "testar a tela de ponta a ponta com Playwright"
+  - "verificar se a entrega atende os critérios de aceite"
+  - "fazer o teste funcional da jornada de proposta"
+  - "gera o caderno de teste da capacidade 001"
+  - "testa a tela de busca de cliente na sandbox"
+  - "quais bugs a entrega tem antes de ir para a PO"
+  - "roda o smoke da tela depois do deploy"
+  - "compara o que foi construído com a spec"
+  - "separa o que é bug do que é comportamento previsto"
+  - "prepara a massa de teste para o QA"
+  - "testa o fluxo de atendimento no navegador"
+  - "me dá o relatório de teste da capacidade"
+  - { texto: "criar a classe de teste Apex", negativa: true }
+  - { texto: "aumentar a cobertura de código", negativa: true }
+  - { texto: "investigar o stack trace do erro", negativa: true }
+  - { texto: "escrever a spec da jornada", negativa: true }
 perfis_sugeridos:
   - qa
   - dev
